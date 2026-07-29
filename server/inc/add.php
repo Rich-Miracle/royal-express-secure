@@ -78,22 +78,37 @@ function addEmployee($data)
 {
 	$con = db();
 
-	$name = $data['name'];
-	$email = $data['email'];
-	$phone = $data['phone'];
-	$nic = $data['nic'];
-	$address = $data['address'];
-	$gender = $data['gender'];
-	$password = $data['password'];
-	$branch_id = $data['branch_id'];
+	/*
+	 * Staff account creation. This was the write path the credential fix missed.
+	 * The migration converted the rows that existed, and registration was fixed
+	 * for customers, but an administrator creating an employee still inserted the
+	 * password exactly as typed. A credential control is only complete when every
+	 * path that writes a password hashes it.
+	 */
+	$name      = trim((string) ($data['name'] ?? ''));
+	$email     = trim((string) ($data['email'] ?? ''));
+	$phone     = trim((string) ($data['phone'] ?? ''));
+	$nic       = trim((string) ($data['nic'] ?? ''));
+	$address   = trim((string) ($data['address'] ?? ''));
+	$gender    = trim((string) ($data['gender'] ?? ''));
+	$password  = (string) ($data['password'] ?? '');
+	$branch_id = (int) ($data['branch_id'] ?? 0);
 
+	if ($name === '' || $email === '' || strlen($password) < 8) {
+		log_security_event('employee_create_rejected_invalid_input', $email);
+		return false;
+	}
 
 	$count = checkemployeetByEmail($email);
 
 	if ($count == 0) {
-
-		$sql = "INSERT INTO employee(name, email, phone, nic, address, gender, password ,is_deleted, branch_id) VALUES('$name', '$email', '$phone', '$nic', '$address', '$gender', '$password', 0 , '$branch_id')";
-		return mysqli_query($con, $sql);
+		$stmt = db_query(
+			"INSERT INTO employee(name, email, phone, nic, address, gender, password, is_deleted, branch_id) VALUES(?, ?, ?, ?, ?, ?, ?, 0, ?)",
+			'sssssssi',
+			[$name, $email, $phone, $nic, $address, $gender, hash_password($password), $branch_id]
+		);
+		log_security_event('employee_created', $email);
+		return $stmt->affected_rows > 0;
 	} else {
 		echo json_encode($count);
 	}

@@ -1,63 +1,42 @@
-STEP 5 - SUPPORTING CONTROLS
-============================
+FIX - CSRF token not reaching requests
+======================================
 
-Security headers, CSRF protection, and output encoding on the stored-XSS path.
-Commit before extracting.
+Replaces pages/head.php and Admin/pages/head.php only.
 
-WHAT CHANGES
-------------
-.htaccess (new)        Security headers, directory listing off, .sql/.log/.md
-                       blocked from direct access.
-tools/.htaccess (new)  Blocks web access to the migration script.
-security.php           Adds e() for output encoding, and the CSRF token
-                       helpers.
-authz.php              Every authenticated request now needs a valid CSRF
-                       token.
-pages/head.php,
-Admin/pages/head.php   Publish the token in a meta tag and attach it to every
-                       jQuery AJAX call.
-index.php,
-Admin/settings.php     26 output sinks wrapped in e().
+WHAT WAS WRONG
+--------------
+The token was published correctly in the meta tag, but the code attaching it to
+requests used jQuery's ajaxSetup. pages/assets.php loads jQuery three separate
+times: 3.6.0, then 3.4.1 slim, then 3.6.0 again. Each load replaces the global
+jQuery object, and any ajaxSetup configuration attached to a previous instance
+is discarded with it. So the header was configured and then thrown away before
+any request was sent.
 
-WHY HEADERS ARE IN .htaccess AND NOT PHP
-----------------------------------------
-index.php emits <!DOCTYPE html> before any PHP include runs, so output has
-already started by the time PHP could call header(). Apache applies these
-before PHP is involved, and it covers static files too.
+THE FIX
+-------
+The token is now attached by hooking XMLHttpRequest.prototype.open directly.
+Every AJAX library on the page, jQuery included, sends through XMLHttpRequest
+underneath, so one hook covers all of them regardless of what loads afterwards.
+window.fetch is wrapped as well.
 
 TESTING
 -------
-1. Sign in as admin. Then change something in Settings. If the save fails, the
-   CSRF token is not reaching the request. Tell me and I will look.
+1. Hard refresh first: Ctrl+F5. The old script will otherwise be cached.
 
-2. Open DevTools, Network tab, trigger any admin action, and check the request
-   headers for X-CSRF-Token. Screenshot it.
+2. As a customer, change your password. The current-password check should now
+   pass.
 
-3. Check the response headers on any page for X-Frame-Options,
-   X-Content-Type-Options and Content-Security-Policy. Screenshot.
+3. Open DevTools, Network tab, trigger the action, click the api.php request
+   and look at Request Headers. X-CSRF-Token should be present. Screenshot it.
 
-4. Stored XSS test. In Settings, set the header title to:
+4. Repeat as admin on a settings change.
 
-     <script>alert('xss')</script>
+5. Check logs\app_error.log. No new csrf_token_invalid entries should appear.
 
-   Save, then load the public home page. Before this patch the alert fired.
-   Now the text should appear literally on the page. Screenshot both the
-   settings field and the rendered page.
-
-   Set it back afterwards.
-
-5. Confirm the site still works: home page, login, registration, courier
-   request, admin pages.
-
-6. Visit http://localhost:8080/royal_express/logs/ and
-   http://localhost:8080/royal_express/tools/ . Both should be forbidden.
-
-IF SETTINGS SAVES STOP WORKING
+WORTH RECORDING FOR THE REPORT
 ------------------------------
-Run: git checkout .    then tell me. The likely cause is jQuery loading after
-the ajaxSetup block on one of the pages.
-
-Then commit:
-  git add .
-  git commit -m "fix: security headers, CSRF tokens, output encoding"
-  git push
+This is a good example of a control that was present in the code, correct in
+principle, and still not working. Only running it revealed the problem, and the
+log told you exactly which check was rejecting the request. That is the value of
+the security logging added earlier: without it this would have surfaced as
+"changing my password says the current one is wrong" with nothing to point at.

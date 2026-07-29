@@ -48,6 +48,9 @@ function customer_function_codes(): array
         'addRequest',    // place a courier request
         'checkPassword', // verify own password before changing it
         'editQty',       // adjust a cart line
+        'updateData',    // change own email or password; ownership is enforced
+                         // inside updateDataTable(), which restricts a customer
+                         // to their own row and refuses the employee table
     ];
 }
 

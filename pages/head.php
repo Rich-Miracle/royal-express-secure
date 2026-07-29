@@ -15,11 +15,41 @@
 ?>
 <meta name="csrf-token" content="<?php echo e(csrf_token()); ?>">
 <script>
-  if (window.jQuery) {
-    $.ajaxSetup({
-      headers: { 'X-CSRF-Token': $('meta[name="csrf-token"]').attr('content') }
-    });
+/*
+ * Attach the CSRF token to every request the page makes.
+ *
+ * The first attempt used jQuery's ajaxSetup, which failed. assets.php loads
+ * jQuery three times, and each load replaces the global object, discarding any
+ * configuration attached to the previous one.
+ *
+ * Hooking XMLHttpRequest instead is immune to that. Every AJAX library on this
+ * page, jQuery included, ultimately sends through XMLHttpRequest, so patching
+ * it once covers all of them no matter what loads afterwards. fetch is wrapped
+ * as well for anything that uses it.
+ */
+(function () {
+  var meta  = document.querySelector('meta[name="csrf-token"]');
+  var token = meta ? meta.getAttribute('content') : '';
+  if (!token) { return; }
+
+  var open = XMLHttpRequest.prototype.open;
+  XMLHttpRequest.prototype.open = function () {
+    var result = open.apply(this, arguments);
+    try { this.setRequestHeader('X-CSRF-Token', token); } catch (e) {}
+    return result;
+  };
+
+  if (window.fetch) {
+    var original = window.fetch;
+    window.fetch = function (input, init) {
+      init = init || {};
+      var headers = new Headers(init.headers || {});
+      headers.set('X-CSRF-Token', token);
+      init.headers = headers;
+      return original(input, init);
+    };
   }
+})();
 </script>
 <?php
 
