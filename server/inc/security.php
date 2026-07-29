@@ -152,4 +152,62 @@ function start_authenticated_session(string $role, array $account): void
     }
 }
 
+
+/*
+ * Output encoding.
+ *
+ * Short name because it is used inline in templates, where a long name makes the
+ * markup unreadable and encoding gets skipped as a result. ENT_QUOTES covers both
+ * quote styles, so the value is safe inside an attribute as well as in element
+ * text. Encoding happens at the point of output rather than on input, because the
+ * same stored value may be written into HTML, into a URL, or into JSON, and each
+ * needs a different escape.
+ */
+function e($value): string
+{
+    return htmlspecialchars((string) $value, ENT_QUOTES, 'UTF-8');
+}
+
+/*
+ * CSRF protection.
+ *
+ * The original application had none, which the Part 1 ZAP scan reported. Every
+ * state-changing request is authorised purely by the session cookie, and a
+ * browser attaches that cookie to any request to this origin regardless of which
+ * page caused it. A page on another site could therefore submit a request that
+ * the application would treat as a legitimate administrative action.
+ *
+ * The token is a per-session secret that an attacking page cannot read, because
+ * the same-origin policy stops it reading this site's HTML. Requiring the token
+ * on every state-changing request means an off-site form cannot produce a valid
+ * one.
+ */
+function csrf_token(): string
+{
+    if (empty($_SESSION['csrf_token'])) {
+        $_SESSION['csrf_token'] = bin2hex(random_bytes(32));
+    }
+
+    return $_SESSION['csrf_token'];
+}
+
+/*
+ * Validate the token on an incoming request.
+ *
+ * Accepts it from the X-CSRF-Token header, which is what the front-end
+ * JavaScript sends, or from a posted field for ordinary form submissions.
+ * hash_equals() is used rather than === so the comparison does not leak
+ * information through its timing.
+ */
+function verify_csrf_token(): bool
+{
+    $sent = $_SERVER['HTTP_X_CSRF_TOKEN'] ?? ($_POST['csrf_token'] ?? '');
+
+    if (!is_string($sent) || $sent === '' || empty($_SESSION['csrf_token'])) {
+        return false;
+    }
+
+    return hash_equals($_SESSION['csrf_token'], $sent);
+}
+
 }

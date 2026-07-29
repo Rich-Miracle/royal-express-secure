@@ -122,6 +122,20 @@ function require_authorisation(string $code): void
         deny(401, 'authz_denied_unauthenticated', $code);
     }
 
+    /*
+     * Beyond this point the caller holds a session, which is exactly the
+     * condition a cross-site request forgery depends on. The browser attaches
+     * the session cookie to a request no matter which page caused it, so the
+     * session alone cannot show that the user intended the action. The token
+     * can, because a page on another origin cannot read it.
+     *
+     * Public function codes are exempt: nobody holds a session at that point,
+     * so there is no authority for an attacking page to borrow.
+     */
+    if (!verify_csrf_token()) {
+        deny(403, 'csrf_token_invalid', $code);
+    }
+
     if (in_array($code, customer_function_codes(), true)) {
         return; // any signed-in role may proceed
     }

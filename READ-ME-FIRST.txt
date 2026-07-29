@@ -1,56 +1,63 @@
-STEP 4 - PUBLIC ENDPOINT HARDENING
-==================================
+STEP 5 - SUPPORTING CONTROLS
+============================
 
-Replaces server/inc/get.php and server/inc/add.php. Extract over the existing
-files, then commit.
+Security headers, CSRF protection, and output encoding on the stored-XSS path.
+Commit before extracting.
 
-WHAT THIS FIXES
----------------
-Five functions reachable without a session were still building SQL by string
-interpolation, so the application remained injectable to an unauthenticated
-attacker even after the login was fixed:
+WHAT CHANGES
+------------
+.htaccess (new)        Security headers, directory listing off, .sql/.log/.md
+                       blocked from direct access.
+tools/.htaccess (new)  Blocks web access to the migration script.
+security.php           Adds e() for output encoding, and the CSRF token
+                       helpers.
+authz.php              Every authenticated request now needs a valid CSRF
+                       token.
+pages/head.php,
+Admin/pages/head.php   Publish the token in a meta tag and attach it to every
+                       jQuery AJAX call.
+index.php,
+Admin/settings.php     26 output sinks wrapped in e().
 
-  checkArea()         public pricing form
-  checkAreaByName()   area lookup
-  checkUserEmail()    registration email availability check
-  getAllcustomerById() customer record lookup
-  addMessage()        public contact form
-  createCustomer()    public registration
-
-All are now prepared statements with bound parameters.
-
-createCustomer() also had a second and more serious fault. It wrote the
-password into the customer table exactly as typed. Migrating the existing rows
-to bcrypt did not fix this, because every new registration since then created
-another plaintext row behind the migration. It now hashes on insert.
-
-If you registered any test accounts after running the migration, their
-passwords are sitting in the table as cleartext. Re-run the migration to
-convert them:
-
-  ..\..\php\php.exe tools\migrate_passwords.php
-
-Input validation was added to both public forms: email format, field lengths,
-a minimum password length of 8, a permitted set for gender, and a duplicate
-address check on registration.
+WHY HEADERS ARE IN .htaccess AND NOT PHP
+----------------------------------------
+index.php emits <!DOCTYPE html> before any PHP include runs, so output has
+already started by the time PHP could call header(). Apache applies these
+before PHP is involved, and it covers static files too.
 
 TESTING
 -------
-1. Re-run sqlmap against checkArea. Expect no injectable parameter:
+1. Sign in as admin. Then change something in Settings. If the save fails, the
+   CSRF token is not reaching the request. Tell me and I will look.
 
-   python sqlmap.py -u "http://localhost:8080/royal_express/server/api.php?function_code=checkArea" --data="send_location=7&end_location=23" -p send_location --batch --flush-session
+2. Open DevTools, Network tab, trigger any admin action, and check the request
+   headers for X-CSRF-Token. Screenshot it.
 
-2. Positive test: the pricing form with Galle to Colombo should still return 100.
+3. Check the response headers on any page for X-Frame-Options,
+   X-Content-Type-Options and Content-Security-Policy. Screenshot.
 
-3. Register a new customer. Then check the customer table in phpMyAdmin. The
-   new row's password must start with $2y$12$. Screenshot it.
+4. Stored XSS test. In Settings, set the header title to:
 
-4. Submit the public contact form. It should still work.
+     <script>alert('xss')</script>
 
-5. Try registering with a password shorter than 8 characters. It should be
-   rejected.
+   Save, then load the public home page. Before this patch the alert fired.
+   Now the text should appear literally on the page. Screenshot both the
+   settings field and the rendered page.
+
+   Set it back afterwards.
+
+5. Confirm the site still works: home page, login, registration, courier
+   request, admin pages.
+
+6. Visit http://localhost:8080/royal_express/logs/ and
+   http://localhost:8080/royal_express/tools/ . Both should be forbidden.
+
+IF SETTINGS SAVES STOP WORKING
+------------------------------
+Run: git checkout .    then tell me. The likely cause is jQuery loading after
+the ajaxSetup block on one of the pages.
 
 Then commit:
   git add .
-  git commit -m "fix: parameterise public endpoints, hash passwords on registration"
+  git commit -m "fix: security headers, CSRF tokens, output encoding"
   git push

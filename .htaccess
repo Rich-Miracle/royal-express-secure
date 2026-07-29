@@ -1,0 +1,41 @@
+# Security response headers.
+#
+# These are applied at the web server rather than in PHP for two reasons. The
+# pages emit <!DOCTYPE html> before any PHP include runs, so by the time PHP
+# executes, output has already started and header() would fail. Applying them
+# here also covers static assets, which never pass through PHP at all.
+<IfModule mod_headers.c>
+    # Stops the browser guessing a content type. An uploaded file that the
+    # server labels as an image can otherwise be sniffed and run as script.
+    Header always set X-Content-Type-Options "nosniff"
+
+    # Denies framing, which blocks clickjacking. The application has no
+    # legitimate reason to be embedded in another site.
+    Header always set X-Frame-Options "DENY"
+
+    # Limits what gets sent in the Referer header to other origins, so
+    # identifiers in a URL are not leaked to third parties.
+    Header always set Referrer-Policy "strict-origin-when-cross-origin"
+
+    # Turns off browser features the application does not use.
+    Header always set Permissions-Policy "geolocation=(), microphone=(), camera=()"
+
+    # Content Security Policy. 'unsafe-inline' is present because the existing
+    # pages carry inline scripts and inline style attributes throughout;
+    # removing it would require rewriting the front end, which is outside the
+    # scope of this work. The policy still restricts where external scripts may
+    # be loaded from, which is the larger part of the benefit.
+    Header always set Content-Security-Policy "default-src 'self'; script-src 'self' 'unsafe-inline' https://cdnjs.cloudflare.com https://code.jquery.com; style-src 'self' 'unsafe-inline' https://fonts.googleapis.com; font-src 'self' https://fonts.gstatic.com; img-src 'self' data:; frame-ancestors 'none'"
+
+    # Removes the PHP version banner.
+    Header unset X-Powered-By
+</IfModule>
+
+# Directory browsing was reported by the Part 1 ZAP scan. Without this, a
+# directory with no index file lists its contents to any visitor.
+Options -Indexes
+
+# Block direct access to the SQL dump and the application logs.
+<FilesMatch "\.(sql|log|md)$">
+    Require all denied
+</FilesMatch>
