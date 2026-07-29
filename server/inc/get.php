@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/connection.php';
+require_once __DIR__ . '/security.php';
 
 
 function getAllBranch()
@@ -129,8 +130,6 @@ function getAllgalleryImages()
 
 function checkuserPassword($data)
 {
-    require_once 'security.php';
-
     $customer_id = (int) ($data['customer_id'] ?? 0);
     $password    = (string) ($data['password'] ?? '');
 
@@ -158,45 +157,60 @@ function checkuserPassword($data)
 
 function checkArea($data)
 {
-    $con = db();
+    /*
+     * Reachable without a session, because the public pricing form has to work
+     * before anyone logs in. That makes it one of the few entry points an
+     * unauthenticated attacker can reach, so the parameterisation here matters
+     * more than it does on an administrator-only function.
+     *
+     * The area identifiers are integers in the schema, so they are cast and
+     * bound as integers. A value that is not numeric becomes 0 and matches
+     * nothing, which is the correct outcome for a malformed request.
+     */
+    $start_area = (int) ($data['send_location'] ?? 0);
+    $end_area   = (int) ($data['end_location'] ?? 0);
 
-    $start_area = $data['send_location'];
-    $end_area = $data['end_location'];
+    $row = db_select_one(
+        "SELECT price FROM price_table WHERE is_deleted = 0 AND start_area = ? AND end_area = ?",
+        'ii',
+        [$start_area, $end_area]
+    );
 
-    $viewcat = "SELECT * FROM price_table WHERE is_deleted = 0 AND start_area = '$start_area' AND end_area = '$end_area' ";
-    $result = mysqli_query($con, $viewcat);
-    $row = mysqli_fetch_assoc($result);
-    echo $row['price'];
+    // The original echoed $row['price'] without checking the row existed, so an
+    // undefined route and a database failure produced the same empty response.
+    echo $row === null ? '' : $row['price'];
 }
 
 function checkAreaByName($area_name)
 {
-    $con = db();
-
-    $q1 = "SELECT * FROM area WHERE area_name = '$area_name' AND is_deleted = 0";
-    $res =  mysqli_query($con, $q1);
-    return mysqli_num_rows($res);
+    return db_select(
+        "SELECT area_id FROM area WHERE area_name = ? AND is_deleted = 0",
+        's',
+        [(string) $area_name]
+    )->num_rows;
 }
 
 function checkUserEmail($data)
 {
-    $con = db();
+    $email       = trim((string) ($data['email'] ?? ''));
+    $customer_id = (int) ($data['customer_id'] ?? 0);
 
-    $customer_id = $data['customer_id'];
-    $email = $data['email'];
+    $count = db_select(
+        "SELECT customer_id FROM customer WHERE is_deleted = 0 AND email = ? AND customer_id = ?",
+        'si',
+        [$email, $customer_id]
+    )->num_rows;
 
-    $viewcat = "SELECT * FROM customer WHERE is_deleted = 0 AND email = '$email' AND customer_id = '$customer_id' ";
-    $result = mysqli_query($con, $viewcat);
-    $count = mysqli_num_rows($result);
     echo $count;
 }
 
 function getAllcustomerById($customer_id)
 {
-    $con = db();
-
-    $q1 = "SELECT * FROM customer WHERE is_deleted = '0' AND customer_id = '$customer_id'";
-    return mysqli_query($con, $q1);
+    return db_select(
+        "SELECT * FROM customer WHERE is_deleted = 0 AND customer_id = ?",
+        'i',
+        [(int) $customer_id]
+    );
 }
 
 function getAllcustomers()
@@ -209,8 +223,6 @@ function getAllcustomers()
 
 function getLoginAdmin($data)
 {
-    require_once 'security.php';
-
     $email    = trim((string) ($data['email'] ?? ''));
     $password = (string) ($data['password'] ?? '');
 
@@ -366,8 +378,6 @@ function getAllSettings()
 
 function checkPasswordByName($data)
 {
-    require_once 'security.php';
-
     $email    = trim((string) ($data['email'] ?? ''));
     $password = (string) ($data['password'] ?? '');
 

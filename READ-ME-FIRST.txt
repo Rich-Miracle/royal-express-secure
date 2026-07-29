@@ -1,26 +1,56 @@
-FIX - api.php dual purpose
-==========================
+STEP 4 - PUBLIC ENDPOINT HARDENING
+==================================
 
-Replaces server/api.php only. Extract over the previous file.
+Replaces server/inc/get.php and server/inc/add.php. Extract over the existing
+files, then commit.
 
-WHAT WAS WRONG
---------------
-server/api.php is used in two different ways in this application:
+WHAT THIS FIXES
+---------------
+Five functions reachable without a session were still building SQL by string
+interpolation, so the application remained injectable to an unauthenticated
+attacker even after the login was fixed:
 
-  1. As the API endpoint, requested directly by the front-end JavaScript with
-     a function_code in the query string.
+  checkArea()         public pricing form
+  checkAreaByName()   area lookup
+  checkUserEmail()    registration email availability check
+  getAllcustomerById() customer record lookup
+  addMessage()        public contact form
+  createCustomer()    public registration
 
-  2. As a library. pages/head.php and Admin/pages/head.php include it on every
-     single page render so the database functions are available to the page.
+All are now prepared statements with bound parameters.
 
-My authorisation gate treated both cases as requests, so every page load hit
-the "Missing function_code" check and stopped there.
+createCustomer() also had a second and more serious fault. It wrote the
+password into the customer table exactly as typed. Migrating the existing rows
+to bcrypt did not fix this, because every new registration since then created
+another plaintext row behind the migration. It now hashes on insert.
 
-THE FIX
+If you registered any test accounts after running the migration, their
+passwords are sitting in the table as cleartext. Re-run the migration to
+convert them:
+
+  ..\..\php\php.exe tools\migrate_passwords.php
+
+Input validation was added to both public forms: email format, field lengths,
+a minimum password length of 8, a permitted set for gender, and a duplicate
+address check on registration.
+
+TESTING
 -------
-The file now compares itself against the script the web server was actually
-asked to run. A direct request is authorised as before. An include skips the
-gate, loads the functions, and routes nothing.
+1. Re-run sqlmap against checkArea. Expect no injectable parameter:
 
-Extract, then work through the six tests in the previous README again, starting
-with signing in as admin / 12345.
+   python sqlmap.py -u "http://localhost:8080/royal_express/server/api.php?function_code=checkArea" --data="send_location=7&end_location=23" -p send_location --batch --flush-session
+
+2. Positive test: the pricing form with Galle to Colombo should still return 100.
+
+3. Register a new customer. Then check the customer table in phpMyAdmin. The
+   new row's password must start with $2y$12$. Screenshot it.
+
+4. Submit the public contact form. It should still work.
+
+5. Try registering with a password shorter than 8 characters. It should be
+   rejected.
+
+Then commit:
+  git add .
+  git commit -m "fix: parameterise public endpoints, hash passwords on registration"
+  git push

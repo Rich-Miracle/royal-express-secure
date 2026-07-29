@@ -1,5 +1,6 @@
 <?php
 require_once __DIR__ . '/connection.php';
+require_once __DIR__ . '/security.php';
 function insertImagetoGallery($img)
 {
 	$con = db();
@@ -104,14 +105,33 @@ function addMessage($data)
 {
 	$con = db();
 
-	$name = $data['name'];
-	$email = $data['email'];
-	$subject = $data['subject'];
-	$message = $data['message'];
+	/*
+	 * Public contact form. Every field is attacker-controlled and none of it was
+	 * validated or bound before. Validation rejects malformed input early; the
+	 * prepared statement makes the query safe regardless of what gets through.
+	 * Both are kept, because validation alone is a filter and filters can be
+	 * evaded, while binding is structural.
+	 */
+	$name    = trim((string) ($data['name'] ?? ''));
+	$email   = trim((string) ($data['email'] ?? ''));
+	$subject = trim((string) ($data['subject'] ?? ''));
+	$message = trim((string) ($data['message'] ?? ''));
 
+	if ($name === '' || $message === '' || !filter_var($email, FILTER_VALIDATE_EMAIL)) {
+		log_security_event('contact_rejected_invalid_input');
+		return false;
+	}
 
-	$sql = "INSERT INTO contact(name, email, subject, message, date_updated) VALUES('$name', '$email', '$subject', '$message', now())";
-	return mysqli_query($con, $sql);
+	if (strlen($name) > 100 || strlen($subject) > 200 || strlen($message) > 5000) {
+		log_security_event('contact_rejected_oversize_field');
+		return false;
+	}
+
+	return db_query(
+		"INSERT INTO contact(name, email, subject, message, date_updated) VALUES(?, ?, ?, ?, now())",
+		'ssss',
+		[$name, $email, $subject, $message]
+	)->affected_rows > 0;
 }
 
 
@@ -119,14 +139,47 @@ function createCustomer($data)
 {
 	$con = db();
 
-	$name = $data['name'];
-	$email = $data['email'];
-	$phone = $data['phone'];
-	$nic = $data['nic'];
-	$address = $data['address'];
-	$gender = $data['gender'];
-	$password = $data['password'];
+	/*
+	 * Public registration.
+	 *
+	 * Two faults here, not one. The obvious fault is the injection. The less
+	 * obvious and more serious fault is that the password was written straight
+	 * into the table as typed. Migrating the existing rows to bcrypt did not fix
+	 * that, because this function kept producing new plaintext rows behind the
+	 * migration. A credential-storage fix is only complete when every write path
+	 * hashes, not only the ones that existed when the migration ran.
+	 */
+	$name     = trim((string) ($data['name'] ?? ''));
+	$email    = trim((string) ($data['email'] ?? ''));
+	$phone    = trim((string) ($data['phone'] ?? ''));
+	$nic      = trim((string) ($data['nic'] ?? ''));
+	$address  = trim((string) ($data['address'] ?? ''));
+	$gender   = trim((string) ($data['gender'] ?? ''));
+	$password = (string) ($data['password'] ?? '');
 
-	$sql = "INSERT INTO customer(name, email, phone, nic, address, gender, password, is_deleted) VALUES('$name', '$email', '$phone', '$nic', '$address', '$gender', '$password', 0 )";
-	return mysqli_query($con, $sql);
+	if ($name === '' || !filter_var($email, FILTER_VALIDATE_EMAIL) || strlen($password) < 8) {
+		log_security_event('registration_rejected_invalid_input', $email);
+		return false;
+	}
+
+	if (!in_array($gender, ['Male', 'Female', 'Other', ''], true)) {
+		log_security_event('registration_rejected_invalid_gender', $email);
+		return false;
+	}
+
+	// Reject a duplicate address rather than letting the insert fail obscurely.
+	$existing = db_select_one("SELECT customer_id FROM customer WHERE email = ?", 's', [$email]);
+	if ($existing !== null) {
+		log_security_event('registration_rejected_duplicate_email', $email);
+		return false;
+	}
+
+	$stmt = db_query(
+		"INSERT INTO customer(name, email, phone, nic, address, gender, password, is_deleted) VALUES(?, ?, ?, ?, ?, ?, ?, 0)",
+		'sssssss',
+		[$name, $email, $phone, $nic, $address, $gender, hash_password($password)]
+	);
+
+	log_security_event('registration_success', $email);
+	return $stmt->affected_rows > 0;
 }
