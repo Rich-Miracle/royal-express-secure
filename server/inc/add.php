@@ -1,7 +1,8 @@
 <?php
+require_once __DIR__ . '/connection.php';
 function insertImagetoGallery($img)
 {
-	include 'connection.php';
+	$con = db();
 
 	$sql = "INSERT INTO gallery(gallery_image) VALUES('$img')";
 	return mysqli_query($con, $sql);
@@ -9,7 +10,7 @@ function insertImagetoGallery($img)
 
 function addBranch($data)
 {
-	include 'connection.php';
+	$con = db();
 
 	$branch_name = $data['branch_name'];
 	$sql = "INSERT INTO branch(branch_name, is_deleted) VALUES('$branch_name', 0)";
@@ -18,7 +19,7 @@ function addBranch($data)
 
 function addArea($data)
 {
-	include 'connection.php';
+	$con = db();
 
 	$area_name = $data['area_name'];
 
@@ -36,7 +37,7 @@ function addArea($data)
 
 function addPrice($data)
 {
-	include 'connection.php';
+	$con = db();
 
 	$start_area = $data['start_area'];
 	$end_area = $data['end_area'];
@@ -55,7 +56,7 @@ function addPrice($data)
 
 function addRequest($data)
 {
-	include 'connection.php';
+	$con = db();
 
 	$customer_id = $data['customer_id'];
 	$sender_phone = $data['sender_phone'];
@@ -74,7 +75,7 @@ function addRequest($data)
 
 function addEmployee($data)
 {
-	include 'connection.php';
+	$con = db();
 
 	$name = $data['name'];
 	$email = $data['email'];
@@ -101,7 +102,7 @@ function addEmployee($data)
 //contact
 function addMessage($data)
 {
-	include 'connection.php';
+	$con = db();
 
 	$name = $data['name'];
 	$email = $data['email'];
@@ -116,7 +117,7 @@ function addMessage($data)
 
 function createCustomer($data)
 {
-	include 'connection.php';
+	$con = db();
 
 	$name = $data['name'];
 	$email = $data['email'];

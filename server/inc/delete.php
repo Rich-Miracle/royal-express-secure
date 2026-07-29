@@ -1,7 +1,8 @@
 <?php
+require_once __DIR__ . '/connection.php';
 
 function deleteDataTables($data){
-    include 'connection.php';
+    $con = db();
 
     $id_fild =  $data['id_fild'];
     $id =  $data['id'];
@@ -12,7 +13,7 @@ function deleteDataTables($data){
 }
 
 function permanantDeleteDataTable($data){
-    include 'connection.php';
+    $con = db();
 
     $id_fild =  $data['id_fild'];
     $id =  $data['id'];
@@ -25,7 +26,7 @@ function permanantDeleteDataTable($data){
 
 function deleteAllCartItems($customer_id){
 
-	include 'connection.php';
+	$con = db();
 
 	$sql2 = "DELETE FROM cart where customer_id = $customer_id";
     return mysqli_query($con, $sql2);

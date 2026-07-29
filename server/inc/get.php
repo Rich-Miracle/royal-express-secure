@@ -1,30 +1,31 @@
 <?php
+require_once __DIR__ . '/connection.php';
 
 
 function getAllBranch()
 {
-    include 'connection.php';
+    $con = db();
 
     $viewcat = "SELECT * FROM branch WHERE is_deleted = 0";
     return mysqli_query($con, $viewcat);
 }
 function getAllArea()
 {
-    include 'connection.php';
+    $con = db();
 
     $viewcat = "SELECT * FROM area WHERE is_deleted = 0";
     return mysqli_query($con, $viewcat);
 }
 function getAllAreabyID($area_id)
 {
-    include 'connection.php';
+    $con = db();
 
     $viewcat = "SELECT * FROM area WHERE is_deleted = 0 AND area_id = '$area_id'";
     return mysqli_query($con, $viewcat);
 }
 function getAllPrice()
 {
-    include 'connection.php';
+    $con = db();
 
     $viewcat = "SELECT * FROM price_table WHERE is_deleted = 0";
     return mysqli_query($con, $viewcat);
@@ -32,7 +33,7 @@ function getAllPrice()
 
 function checkPrice($start_area, $end_area)
 {
-    include 'connection.php';
+    $con = db();
 
     $viewcat = "SELECT * FROM price_table WHERE is_deleted = 0 AND start_area = '$start_area' AND end_area = '$end_area'";
     return mysqli_num_rows(mysqli_query($con, $viewcat));
@@ -40,7 +41,7 @@ function checkPrice($start_area, $end_area)
 
 function getBille($customer_id)
 {
-    include 'connection.php';
+    $con = db();
 
     $q1 = "SELECT * FROM request join customer on customer.customer_id = request.customer_id WHERE request.customer_id = '$customer_id' ";
     return mysqli_query($con, $q1);
@@ -50,7 +51,7 @@ function getBille($customer_id)
 
 function getAllemployee()
 {
-    include 'connection.php';
+    $con = db();
 
     $q1 = "SELECT * FROM employee WHERE is_deleted = 0 AND email != 'admin'";
     return mysqli_query($con, $q1);
@@ -58,7 +59,7 @@ function getAllemployee()
 
 function getemployeeByID($emp_id)
 {
-    include 'connection.php';
+    $con = db();
 
     $q1 = "SELECT * FROM employee WHERE is_deleted = 0 AND emp_id = '$emp_id'";
     return mysqli_query($con, $q1);
@@ -66,7 +67,7 @@ function getemployeeByID($emp_id)
 
 function getemployeeByEmail($email)
 {
-    include 'connection.php';
+    $con = db();
 
     $q1 = "SELECT * FROM employee WHERE is_deleted = 0 AND email = '$email'";
     return mysqli_query($con, $q1);
@@ -74,7 +75,7 @@ function getemployeeByEmail($email)
 
 function getBranchByID($branch_id)
 {
-    include 'connection.php';
+    $con = db();
 
     $q1 = "SELECT * FROM branch WHERE is_deleted = 0 AND branch_id = '$branch_id'";
     return mysqli_query($con, $q1);
@@ -82,7 +83,7 @@ function getBranchByID($branch_id)
 
 function getAllTrackingByCUS($customer_id)
 {
-    include 'connection.php';
+    $con = db();
 
     $viewcat = "SELECT * FROM request WHERE is_deleted = 0 AND customer_id = '$customer_id' ORDER BY date_updated DESC";
     return mysqli_query($con, $viewcat);
@@ -90,7 +91,7 @@ function getAllTrackingByCUS($customer_id)
 
 function getAllTracking()
 {
-    include 'connection.php';
+    $con = db();
 
     $viewcat = "SELECT * FROM request join customer on customer.customer_id = request.customer_id WHERE request.is_deleted = 0 ORDER BY date_updated DESC";
     return mysqli_query($con, $viewcat);
@@ -98,7 +99,7 @@ function getAllTracking()
 
 function checkemployeetByEmail($email)
 {
-    include 'connection.php';
+    $con = db();
 
     $employee = "SELECT * FROM employee WHERE email = '$email' AND is_deleted = 0";
     $result = mysqli_query($con, $employee);
@@ -117,7 +118,7 @@ function checkemployeetByEmail($email)
 
 function getAllgalleryImages()
 {
-    include 'connection.php';
+    $con = db();
 
     $q1 = "SELECT * FROM gallery";
     return mysqli_query($con, $q1);
@@ -128,19 +129,36 @@ function getAllgalleryImages()
 
 function checkuserPassword($data)
 {
-    include 'connection.php';
-    $customer_id = $data['customer_id'];
-    $password = $data['password'];
+    require_once 'security.php';
 
-    $viewcat = "SELECT * FROM customer WHERE is_deleted = 0 AND password = '$password' AND customer_id = '$customer_id' ";
-    $result = mysqli_query($con, $viewcat);
-    $count = mysqli_num_rows($result);
-    echo $count;
+    $customer_id = (int) ($data['customer_id'] ?? 0);
+    $password    = (string) ($data['password'] ?? '');
+
+    if ($customer_id <= 0 || $password === '') {
+        echo '0';
+        return;
+    }
+
+    $row = db_select_one(
+        "SELECT customer_id, password FROM customer WHERE customer_id = ? AND is_deleted = 0",
+        'i',
+        [$customer_id]
+    );
+
+    $ok = $row !== null
+        && verify_and_upgrade_password('customer', 'customer_id', $customer_id, $password, $row['password']);
+
+    if (!$ok) {
+        log_security_event('password_check_failed', (string) $customer_id);
+    }
+
+    // Caller expects a row count. Preserved so the existing JavaScript still works.
+    echo $ok ? '1' : '0';
 }
 
 function checkArea($data)
 {
-    include 'connection.php';
+    $con = db();
 
     $start_area = $data['send_location'];
     $end_area = $data['end_location'];
@@ -153,7 +171,7 @@ function checkArea($data)
 
 function checkAreaByName($area_name)
 {
-    include 'connection.php';
+    $con = db();
 
     $q1 = "SELECT * FROM area WHERE area_name = '$area_name' AND is_deleted = 0";
     $res =  mysqli_query($con, $q1);
@@ -162,7 +180,7 @@ function checkAreaByName($area_name)
 
 function checkUserEmail($data)
 {
-    include 'connection.php';
+    $con = db();
 
     $customer_id = $data['customer_id'];
     $email = $data['email'];
@@ -175,7 +193,7 @@ function checkUserEmail($data)
 
 function getAllcustomerById($customer_id)
 {
-    include 'connection.php';
+    $con = db();
 
     $q1 = "SELECT * FROM customer WHERE is_deleted = '0' AND customer_id = '$customer_id'";
     return mysqli_query($con, $q1);
@@ -183,7 +201,7 @@ function getAllcustomerById($customer_id)
 
 function getAllcustomers()
 {
-    include 'connection.php';
+    $con = db();
 
     $q1 = "SELECT * FROM customer WHERE is_deleted = 0 AND email != 'admin'";
     return mysqli_query($con, $q1);
@@ -191,42 +209,68 @@ function getAllcustomers()
 
 function getLoginAdmin($data)
 {
-    include 'connection.php';
+    require_once 'security.php';
 
-    $email = $data['email'];
-    $password = $data['password'];
+    $email    = trim((string) ($data['email'] ?? ''));
+    $password = (string) ($data['password'] ?? '');
 
-    $loginAdmin = "SELECT * FROM employee WHERE email = '$email' AND password ='$password'";
-    $countloginAdmin = mysqli_query($con, $loginAdmin);
-    $counts_loginAdmin = mysqli_num_rows($countloginAdmin);
-
-    $loginCustomer = "SELECT * FROM customer WHERE email = '$email' AND password ='$password'";
-    $count_loginCustomer = mysqli_query($con, $loginCustomer);
-    $counts_loginCustomer = mysqli_num_rows($count_loginCustomer);
-
-    $value = "";
-
-    if ($counts_loginAdmin > 0) {
-
-        $value = 'admin';
-
-        $res = checkemployee($email);
-        $row = mysqli_fetch_assoc($res);
-        $_SESSION['admin'] = $row['email'];
-    } else if ($counts_loginCustomer > 0) {
-
-        $value = 'customer';
-
-        $res = checkCustomerByEmail($email);
-        $row = mysqli_fetch_assoc($res);
-        $_SESSION['customer'] = $row['customer_id'];
+    if ($email === '' || $password === '') {
+        log_security_event('login_rejected_empty_field');
+        echo '';
+        return;
     }
-    echo $value;
+
+    /*
+     * The password can no longer take part in the lookup. A bcrypt digest is
+     * salted, so the stored value never equals the submitted value and an
+     * equality test in SQL would match nothing. The row is therefore selected
+     * on the identifier alone and the secret is checked afterwards in PHP.
+     *
+     * is_deleted = 0 is now part of the condition. The original query omitted
+     * it, so an employee who had been removed through the admin interface could
+     * still authenticate.
+     */
+    $account = db_select_one(
+        "SELECT emp_id, email, password FROM employee WHERE email = ? AND is_deleted = 0",
+        's',
+        [$email]
+    );
+    $role  = 'admin';
+    $table = 'employee';
+    $idCol = 'emp_id';
+
+    if ($account === null) {
+        $account = db_select_one(
+            "SELECT customer_id, email, password FROM customer WHERE email = ? AND is_deleted = 0",
+            's',
+            [$email]
+        );
+        $role  = 'customer';
+        $table = 'customer';
+        $idCol = 'customer_id';
+    }
+
+    if ($account === null
+        || !verify_and_upgrade_password($table, $idCol, $account[$idCol], $password, $account['password'])) {
+        /*
+         * One branch for "no such account" and "wrong password" on purpose.
+         * Reporting them separately lets an attacker enumerate valid addresses
+         * without ever guessing a password.
+         */
+        log_security_event('login_failed', $email);
+        echo '';
+        return;
+    }
+
+    start_authenticated_session($role, $account);
+    log_security_event('login_success', $email, ['role' => $role]);
+
+    echo $role;
 }
 
 function checkemployee($email)
 {
-    include 'connection.php';
+    $con = db();
 
     $q1 = "SELECT * FROM employee WHERE email='$email' AND is_deleted='0'";
     return mysqli_query($con, $q1);
@@ -234,7 +278,7 @@ function checkemployee($email)
 
 function checkCustomerByEmail($email)
 {
-    include 'connection.php';
+    $con = db();
 
     $q1 = "SELECT * FROM customer WHERE email='$email' AND is_deleted='0'";
     return mysqli_query($con, $q1);
@@ -243,7 +287,7 @@ function checkCustomerByEmail($email)
 
 function checkCustomerByID($customer_id)
 {
-    include 'connection.php';
+    $con = db();
 
     $q1 = "SELECT * FROM customer WHERE customer_id='$customer_id' AND is_deleted = '0'";
     return mysqli_query($con, $q1);
@@ -251,7 +295,7 @@ function checkCustomerByID($customer_id)
 
 function getAllCustomer()
 {
-    include 'connection.php';
+    $con = db();
 
     $q1 = "SELECT * FROM customer WHERE is_deleted = '0' AND email != 'admin'";
     $table = mysqli_query($con, $q1);
@@ -265,7 +309,7 @@ function getAllCustomer()
 
 function getAllMessages()
 {
-    include 'connection.php';
+    $con = db();
 
     $messages = "SELECT * FROM contact";
     return mysqli_query($con, $messages);
@@ -275,7 +319,7 @@ function getAllMessages()
 
 function dataCount($table)
 {
-    include 'connection.php';
+    $con = db();
 
     $counts = "SELECT * FROM $table WHERE is_deleted = 0";
     $res =  mysqli_query($con, $counts);
@@ -285,7 +329,7 @@ function dataCount($table)
 
 function dataCountWhere($table, $where)
 {
-    include 'connection.php';
+    $con = db();
 
     $counts = "SELECT * FROM $table WHERE $where AND is_deleted = 0";
     $res =  mysqli_query($con, $counts);
@@ -295,7 +339,7 @@ function dataCountWhere($table, $where)
 
 function dataforCount($table)
 {
-    include 'connection.php';
+    $con = db();
 
     $counts = "SELECT sum(total) as sum FROM $table WHERE is_deleted = 0";
     return mysqli_query($con, $counts);
@@ -303,7 +347,7 @@ function dataforCount($table)
 
 function dataforCountToday($table)
 {
-    include 'connection.php';
+    $con = db();
 
     $counts = "SELECT sum(total) as sum FROM $table WHERE month(now()) = month(date_updated) AND is_deleted = 0s";
     return mysqli_query($con, $counts);
@@ -314,7 +358,7 @@ function dataforCountToday($table)
 
 function getAllSettings()
 {
-    include 'connection.php';
+    $con = db();
 
     $settings = "SELECT * FROM settings";
     return mysqli_query($con, $settings);
@@ -322,19 +366,35 @@ function getAllSettings()
 
 function checkPasswordByName($data)
 {
-    include 'connection.php';
-    $email = $data['email'];
-    $password = $data['password'];
+    require_once 'security.php';
 
-    $viewcat = "SELECT * FROM employee WHERE password = '$password' AND email = '$email' ";
-    $result = mysqli_query($con, $viewcat);
-    $count = mysqli_num_rows($result);
-    echo $count;
+    $email    = trim((string) ($data['email'] ?? ''));
+    $password = (string) ($data['password'] ?? '');
+
+    if ($email === '' || $password === '') {
+        echo '0';
+        return;
+    }
+
+    $row = db_select_one(
+        "SELECT emp_id, password FROM employee WHERE email = ? AND is_deleted = 0",
+        's',
+        [$email]
+    );
+
+    $ok = $row !== null
+        && verify_and_upgrade_password('employee', 'emp_id', $row['emp_id'], $password, $row['password']);
+
+    if (!$ok) {
+        log_security_event('password_check_failed', $email);
+    }
+
+    echo $ok ? '1' : '0';
 }
 
 function getAllCart($customer_id)
 {
-    include 'connection.php';
+    $con = db();
 
     $q1 = "SELECT * FROM cart join products on products.pid = cart.pid join customer on customer.customer_id = cart.customer_id WHERE cart.customer_id = '$customer_id'";
     return mysqli_query($con, $q1);
@@ -343,7 +403,7 @@ function getAllCart($customer_id)
 
 function getAllOrdersByCustomer($customer_id)
 {
-    include 'connection.php';
+    $con = db();
 
     $viewcat = "SELECT * FROM product_orders WHERE customer_id = '$customer_id' AND is_deleted = '0' ORDER BY date_updated DESC";
     return mysqli_query($con, $viewcat);
@@ -351,7 +411,7 @@ function getAllOrdersByCustomer($customer_id)
 
 function getAllOrderItemsBYOrder($order_id)
 {
-    include 'connection.php';
+    $con = db();
 
     $viewcat = "SELECT * FROM order_items join products on order_items.pid = products.pid WHERE order_items.order_id = '$order_id'";
     return mysqli_query($con, $viewcat);
@@ -359,7 +419,7 @@ function getAllOrderItemsBYOrder($order_id)
 
 function getAllOrders()
 {
-    include 'connection.php';
+    $con = db();
 
     $viewcat = "SELECT * FROM product_orders join customer on customer.customer_id = product_orders.customer_id  WHERE product_orders.is_deleted = '0' ORDER BY date_updated DESC";
     return mysqli_query($con, $viewcat);
@@ -367,7 +427,7 @@ function getAllOrders()
 
 function getAllOrdersPending()
 {
-    include 'connection.php';
+    $con = db();
 
     $viewcat = "SELECT * FROM product_orders join customer on customer.customer_id = product_orders.customer_id  WHERE product_orders.is_deleted = '0' AND product_orders.order_status = '1' ORDER BY date_updated DESC";
     return mysqli_query($con, $viewcat);
@@ -375,7 +435,7 @@ function getAllOrdersPending()
 
 function getAllOrderItems($order_id)
 {
-    include 'connection.php';
+    $con = db();
 
     $viewcat = "SELECT * FROM order_items join products on order_items.pid = products.pid WHERE order_items.order_id = '$order_id'";
     return mysqli_query($con, $viewcat);

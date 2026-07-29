@@ -1,7 +1,8 @@
 <?php
+require_once __DIR__ . '/connection.php';
 function updateDataTable($data)
 {
-    include 'connection.php';
+    $con = db();
 
     $id_fild = $data['id_fild'];
     $id = $data['id'];
@@ -16,7 +17,7 @@ function updateDataTable($data)
 
 function updateSubCatData($data)
 {
-    include 'connection.php';
+    $con = db();
 
     $id_fild = $data['id_fild'];
     $id = $data['id'];
@@ -38,7 +39,7 @@ function updateSubCatData($data)
 
 function editImages($data, $img)
 {
-    include 'connection.php';
+    $con = db();
 
     $id_fild = $data['id_fild'];
     $id = $data['id'];
@@ -53,7 +54,7 @@ function editImages($data, $img)
 
 function productQtyReduce($pid, $qty)
 {
-    include 'connection.php';
+    $con = db();
 
     $viewProducts = "SELECT * FROM products WHERE pid = '$pid'";
     $res = mysqli_query($con, $viewProducts);
@@ -67,7 +68,7 @@ function productQtyReduce($pid, $qty)
 
 function increaseQtyProduct($data)
 {
-    include 'connection.php';
+    $con = db();
 
     $serve_id = $data['serve_id'];
 
@@ -89,7 +90,7 @@ function increaseQtyProduct($data)
 
 function changePageSettings($data)
 {
-    include 'connection.php';
+    $con = db();
     $field = $data['field'];
     $value = $data['value'];
 
@@ -99,7 +100,7 @@ function changePageSettings($data)
 
 function editSettingImage($data, $img)
 {
-    include 'connection.php';
+    $con = db();
 
     $field = $data['field'];
 
@@ -109,7 +110,7 @@ function editSettingImage($data, $img)
 
 function editQtyinCart($data)
 {
-    include 'connection.php';
+    $con = db();
 
     $cart_id = $data['cart_id'];
     $field = $data['field'];

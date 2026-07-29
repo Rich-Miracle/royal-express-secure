@@ -1,28 +1,44 @@
-STEP 1 OF 2 - CI SETUP
-======================
+STEP 2 - CODE PATCHES (revised, include-guard fix)
+==================================================
 
-Extract this zip DIRECTLY INTO your project folder:
+This replaces the earlier zip 2. Extract over the previous files.
 
-  C:\Users\lenovo\Documents\APU\CYB\SEMESTER 6\Advanced Software Security\XAMPP\htdocs\royal_express
+Extract DIRECTLY INTO your project folder, "extract here", overwrite when asked:
 
-Choose "extract here" so the folder structure is preserved. You should end up
-with these paths:
+  royal_express\server\inc\config.php        (new)
+  royal_express\server\inc\connection.php    (REPLACES original)
+  royal_express\server\inc\security.php      (new)
+  royal_express\server\inc\get.php           (REPLACES original)
+  royal_express\server\inc\add.php           (REPLACES original)
+  royal_express\server\inc\update.php        (REPLACES original)
+  royal_express\server\inc\delete.php        (REPLACES original)
+  royal_express\tools\migrate_passwords.php   (new)
+  royal_express\logs\.htaccess                (new)
 
-  royal_express\.github\workflows\semgrep.yml
-  royal_express\.semgrep\royal-express.yml
-  royal_express\.gitignore
-  royal_express\README.md
+1. Start Apache AND MySQL in the XAMPP Control Panel.
 
-If you already have a .gitignore or README.md, let the extraction overwrite them.
+2. Load http://localhost:8080/royal_express/ and confirm the page renders.
 
-Then, in the project folder:
+3. Convert the plaintext passwords, from the project folder:
 
-  git add .
-  git commit -m "Add Semgrep SAST workflow and custom ruleset"
-  git push
+     ..\..\php\php.exe tools\migrate_passwords.php
 
-Open the Actions tab on GitHub. The run should FAIL RED, because the code is
-still vulnerable. That red run is evidence. Screenshot it and download the
-semgrep-results artifact before moving on to step 2.
+   Expect: "Done. 5 converted, 0 already hashed."
 
-Delete this text file before committing if you prefer a tidy repository.
+4. Screenshot the employee table in phpMyAdmin. The password column should
+   show $2y$12$... strings.
+
+5. Test three logins:
+     admin / 12345                 SUCCEEDS
+     admin / wrongpassword         FAILS
+     ' OR '1'='1' --  / anything   FAILS
+
+6. Check logs\app_error.log for login_success and login_failed entries.
+
+7. Commit and push:
+     git add .
+     git commit -m "fix: parameterise credential path, hash passwords, harden sessions"
+     git push
+
+The CI gate will still fail. 45 interpolated queries remain in add.php,
+update.php and delete.php. Expected at this stage.
