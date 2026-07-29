@@ -1,3 +1,4 @@
+<?php include 'checkAdmin.php'; ?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -49,7 +50,7 @@
                                 <span>Message</span>
                             </a>
                         </li>
-                        <?php if (isset($_SESSION['admin']) && $_SESSION['admin'] == 'admin') : ?>
+                        <?php if (($_SESSION['role'] ?? '') === 'admin') : ?>
                             <li class="sidebar-item">
                                 <a href="branch.php" class='sidebar-link'>
                                     <i class="bi bi-columns"></i>
@@ -63,7 +64,7 @@
                                 <span>Employee </span>
                             </a>
                         </li>
-                        <?php if (isset($_SESSION['admin']) && $_SESSION['admin'] == 'admin') : ?>
+                        <?php if (($_SESSION['role'] ?? '') === 'admin') : ?>
                             <li class="sidebar-item">
                                 <a href="area.php" class='sidebar-link'>
                                     <i class="bi bi-geo-alt-fill"></i>
@@ -114,7 +115,7 @@
                         </ol>
                     </nav>
                 </div>
-                <?php if (isset($_SESSION['admin']) && $_SESSION['admin'] == 'admin') : ?>
+                <?php if (($_SESSION['role'] ?? '') === 'admin') : ?>
                     <div class="col-lg-2">
                         <button class="btn btn-primary" data-bs-toggle="modal" data-bs-target="#EmployeeModal"> Add
                             New</button>
@@ -197,7 +198,7 @@
                                             </td>
                                             <td> <a href="empolyee_edit.php?emp_id=<?php echo $emp_id; ?>" class="btn btn-darkblue"> <i class="fa-solid fa-edit"></i>
                                                 </a>
-                                                <?php if (isset($_SESSION['admin']) && $_SESSION['admin'] == 'admin') : ?>
+                                                <?php if (($_SESSION['role'] ?? '') === 'admin') : ?>
                                                     <button type="button" onclick="deleteData(<?php echo $row['emp_id']; ?>,'employee', 'emp_id')" class="btn btn-darkblue"> <i class="fa-solid fa-trash"></i>
                                                     </button>
                                                 <?php endif; ?>

@@ -146,7 +146,7 @@ function checkuserPassword($data)
     );
 
     $ok = $row !== null
-        && verify_and_upgrade_password('customer', 'customer_id', $customer_id, $password, $row['password']);
+        && verify_and_upgrade_password('customer', $customer_id, $password, $row['password']);
 
     if (!$ok) {
         log_security_event('password_check_failed', (string) $customer_id);
@@ -251,7 +251,7 @@ function getLoginAdmin($data)
     }
 
     if ($account === null
-        || !verify_and_upgrade_password($table, $idCol, $account[$idCol], $password, $account['password'])) {
+        || !verify_and_upgrade_password($table, $account[$idCol], $password, $account['password'])) {
         /*
          * One branch for "no such account" and "wrong password" on purpose.
          * Reporting them separately lets an attacker enumerate valid addresses
@@ -383,7 +383,7 @@ function checkPasswordByName($data)
     );
 
     $ok = $row !== null
-        && verify_and_upgrade_password('employee', 'emp_id', $row['emp_id'], $password, $row['password']);
+        && verify_and_upgrade_password('employee', $row['emp_id'], $password, $row['password']);
 
     if (!$ok) {
         log_security_event('password_check_failed', $email);

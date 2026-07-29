@@ -1,44 +1,26 @@
-STEP 2 - CODE PATCHES (revised, include-guard fix)
-==================================================
+FIX - api.php dual purpose
+==========================
 
-This replaces the earlier zip 2. Extract over the previous files.
+Replaces server/api.php only. Extract over the previous file.
 
-Extract DIRECTLY INTO your project folder, "extract here", overwrite when asked:
+WHAT WAS WRONG
+--------------
+server/api.php is used in two different ways in this application:
 
-  royal_express\server\inc\config.php        (new)
-  royal_express\server\inc\connection.php    (REPLACES original)
-  royal_express\server\inc\security.php      (new)
-  royal_express\server\inc\get.php           (REPLACES original)
-  royal_express\server\inc\add.php           (REPLACES original)
-  royal_express\server\inc\update.php        (REPLACES original)
-  royal_express\server\inc\delete.php        (REPLACES original)
-  royal_express\tools\migrate_passwords.php   (new)
-  royal_express\logs\.htaccess                (new)
+  1. As the API endpoint, requested directly by the front-end JavaScript with
+     a function_code in the query string.
 
-1. Start Apache AND MySQL in the XAMPP Control Panel.
+  2. As a library. pages/head.php and Admin/pages/head.php include it on every
+     single page render so the database functions are available to the page.
 
-2. Load http://localhost:8080/royal_express/ and confirm the page renders.
+My authorisation gate treated both cases as requests, so every page load hit
+the "Missing function_code" check and stopped there.
 
-3. Convert the plaintext passwords, from the project folder:
+THE FIX
+-------
+The file now compares itself against the script the web server was actually
+asked to run. A direct request is authorised as before. An include skips the
+gate, loads the functions, and routes nothing.
 
-     ..\..\php\php.exe tools\migrate_passwords.php
-
-   Expect: "Done. 5 converted, 0 already hashed."
-
-4. Screenshot the employee table in phpMyAdmin. The password column should
-   show $2y$12$... strings.
-
-5. Test three logins:
-     admin / 12345                 SUCCEEDS
-     admin / wrongpassword         FAILS
-     ' OR '1'='1' --  / anything   FAILS
-
-6. Check logs\app_error.log for login_success and login_failed entries.
-
-7. Commit and push:
-     git add .
-     git commit -m "fix: parameterise credential path, hash passwords, harden sessions"
-     git push
-
-The CI gate will still fail. 45 interpolated queries remain in add.php,
-update.php and delete.php. Expected at this stage.
+Extract, then work through the six tests in the previous README again, starting
+with signing in as admin / 12345.

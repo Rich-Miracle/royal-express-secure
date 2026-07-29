@@ -84,7 +84,24 @@ function is_legacy_plaintext(string $stored): bool
  * juggling on numeric-looking strings, which is how "0e123" style values end up
  * comparing equal to each other.
  */
-function verify_and_upgrade_password(string $table, string $idColumn, $idValue, string $submitted, string $stored): bool
+function password_update_sql(string $table): string
+{
+    /*
+     * The table name cannot be a bound parameter, only values can. Rather than
+     * interpolate it, the statement is selected from a fixed set. Nothing the
+     * caller supplies ever reaches the query text.
+     */
+    switch ($table) {
+        case 'employee':
+            return 'UPDATE employee SET password = ? WHERE emp_id = ?';
+        case 'customer':
+            return 'UPDATE customer SET password = ? WHERE customer_id = ?';
+    }
+
+    throw new InvalidArgumentException('Unknown credential table: ' . $table);
+}
+
+function verify_and_upgrade_password(string $table, $idValue, string $submitted, string $stored): bool
 {
     if (is_legacy_plaintext($stored)) {
         if (!hash_equals($stored, $submitted)) {
@@ -92,8 +109,7 @@ function verify_and_upgrade_password(string $table, string $idColumn, $idValue, 
         }
 
         // Correct plaintext password. Replace it with a hash before returning.
-        $sql = "UPDATE `$table` SET password = ? WHERE `$idColumn` = ?";
-        db_query($sql, 'si', [hash_password($submitted), (int) $idValue]);
+        db_query(password_update_sql($table), 'si', [hash_password($submitted), (int) $idValue]);
         log_security_event('password_upgraded_to_hash', (string) $idValue, ['table' => $table]);
 
         return true;
@@ -105,8 +121,7 @@ function verify_and_upgrade_password(string $table, string $idColumn, $idValue, 
 
     // Stored hash is valid but was produced with an older cost factor. Refresh it.
     if (password_needs_rehash($stored, PASSWORD_BCRYPT, ['cost' => PASSWORD_COST])) {
-        $sql = "UPDATE `$table` SET password = ? WHERE `$idColumn` = ?";
-        db_query($sql, 'si', [hash_password($submitted), (int) $idValue]);
+        db_query(password_update_sql($table), 'si', [hash_password($submitted), (int) $idValue]);
     }
 
     return true;

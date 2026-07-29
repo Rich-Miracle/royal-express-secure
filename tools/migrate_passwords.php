@@ -28,15 +28,15 @@ if (PHP_SAPI !== 'cli') {
 require_once __DIR__ . '/../server/inc/security.php';
 
 $targets = [
-    ['table' => 'employee', 'id' => 'emp_id'],
-    ['table' => 'customer', 'id' => 'customer_id'],
+    ['table' => 'employee', 'select' => 'SELECT emp_id AS id, password FROM employee'],
+    ['table' => 'customer', 'select' => 'SELECT customer_id AS id, password FROM customer'],
 ];
 
 $converted = 0;
 $skipped   = 0;
 
 foreach ($targets as $t) {
-    $rows = db_select("SELECT `{$t['id']}` AS id, password FROM `{$t['table']}`");
+    $rows = db_select($t['select']);
 
     while ($row = $rows->fetch_assoc()) {
         if (!is_legacy_plaintext((string) $row['password'])) {
@@ -45,7 +45,7 @@ foreach ($targets as $t) {
         }
 
         db_query(
-            "UPDATE `{$t['table']}` SET password = ? WHERE `{$t['id']}` = ?",
+            password_update_sql($t['table']),
             'si',
             [hash_password((string) $row['password']), (int) $row['id']]
         );

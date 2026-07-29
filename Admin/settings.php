@@ -1,3 +1,4 @@
+<?php include 'checkAdmin.php'; ?>
 <!DOCTYPE html>
 <html lang="en">
 
@@ -49,7 +50,7 @@
                                 <span>Message</span>
                             </a>
                         </li>
-                        <?php if (isset($_SESSION['admin']) && $_SESSION['admin'] == 'admin') : ?>
+                        <?php if (($_SESSION['role'] ?? '') === 'admin') : ?>
                             <li class="sidebar-item">
                                 <a href="branch.php" class='sidebar-link'>
                                     <i class="bi bi-columns"></i>
@@ -62,7 +63,7 @@
                                 <i class="bi bi-person-fill"></i>
                                 <span>Employee </span>
                             </a>
-                            <?php if (isset($_SESSION['admin']) && $_SESSION['admin'] == 'admin') : ?>
+                            <?php if (($_SESSION['role'] ?? '') === 'admin') : ?>
                         </li>
 
                         <li class="sidebar-item">
@@ -115,7 +116,7 @@
                                     <hr>
                                     <p>Change Password <a data-bs-toggle="modal" data-bs-target="#ChangePasswordModal" href="">Change</a> </p>
                                 </section>
-                                <?php if (isset($_SESSION['admin']) && $_SESSION['admin'] == 'admin') : ?>
+                                <?php if (($_SESSION['role'] ?? '') === 'admin') : ?>
                                     <section class="row">
 
 

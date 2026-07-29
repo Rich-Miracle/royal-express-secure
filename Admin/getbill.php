@@ -1,4 +1,6 @@
 <?php
+include 'checkAdmin.php';
+
 require('assets/plugin/pdf/fpdf.php');
 include('../server/api.php');
 
