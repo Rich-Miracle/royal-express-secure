@@ -1,0 +1,15 @@
+# Scan output. Produced by CI and downloaded as an artifact, not committed.
+semgrep-results.json
+semgrep-results.sarif
+semgrep-results.txt
+dependency-check-report.*
+
+# Runtime logs. May contain IP addresses and account identifiers.
+logs/*.log
+
+# Local configuration overrides. Must never reach the repository.
+.env
+server/inc/config.local.php
+
+# Uploaded content
+server/uploads/products/

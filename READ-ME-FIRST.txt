@@ -1,0 +1,28 @@
+STEP 1 OF 2 - CI SETUP
+======================
+
+Extract this zip DIRECTLY INTO your project folder:
+
+  C:\Users\lenovo\Documents\APU\CYB\SEMESTER 6\Advanced Software Security\XAMPP\htdocs\royal_express
+
+Choose "extract here" so the folder structure is preserved. You should end up
+with these paths:
+
+  royal_express\.github\workflows\semgrep.yml
+  royal_express\.semgrep\royal-express.yml
+  royal_express\.gitignore
+  royal_express\README.md
+
+If you already have a .gitignore or README.md, let the extraction overwrite them.
+
+Then, in the project folder:
+
+  git add .
+  git commit -m "Add Semgrep SAST workflow and custom ruleset"
+  git push
+
+Open the Actions tab on GitHub. The run should FAIL RED, because the code is
+still vulnerable. That red run is evidence. Screenshot it and download the
+semgrep-results artifact before moving on to step 2.
+
+Delete this text file before committing if you prefer a tidy repository.

@@ -1,0 +1,195 @@
+rules:
+  # ---------------------------------------------------------------------------
+  # A03:2021 Injection / CWE-89
+  # ---------------------------------------------------------------------------
+  - id: royal-sql-string-interpolation
+    languages: [php]
+    severity: ERROR
+    message: >-
+      SQL statement assembled by interpolating a PHP variable into the query
+      string. The value becomes part of the command rather than data, which
+      permits SQL injection. Replace with a prepared statement and bind the
+      value as a parameter.
+    metadata:
+      cwe: "CWE-89"
+      owasp: "A03:2021 Injection"
+    patterns:
+      - pattern-regex: '"\s*(SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM)[^"]*\$\w+[^"]*"'
+
+  - id: royal-query-on-unprepared-string
+    languages: [php]
+    severity: WARNING
+    message: >-
+      mysqli_query() is executing a string that was built elsewhere. Confirm the
+      string contains no interpolated input, or convert the call to
+      prepare/bind_param/execute.
+    metadata:
+      cwe: "CWE-89"
+    patterns:
+      - pattern: mysqli_query($CON, $SQL)
+      - pattern-not: mysqli_query($CON, "...")
+
+  # ---------------------------------------------------------------------------
+  # A02:2021 Cryptographic Failures / CWE-256
+  # ---------------------------------------------------------------------------
+  - id: royal-plaintext-password-comparison
+    languages: [php]
+    severity: ERROR
+    message: >-
+      Password compared as a literal value inside a SQL condition. A direct
+      equality test only succeeds when the stored value is the raw password,
+      which means credentials are held in cleartext. Select the row on its
+      identifier and verify the secret with password_verify().
+    metadata:
+      cwe: "CWE-256"
+      owasp: "A02:2021 Cryptographic Failures"
+    patterns:
+      - pattern-regex: 'password\s*=\s*.\$\w+.' 
+
+  - id: royal-password-stored-without-hash
+    languages: [php]
+    severity: ERROR
+    message: >-
+      A value named as a password is written to the database without passing
+      through password_hash(). Store a one-way hash, never the password itself.
+    metadata:
+      cwe: "CWE-256"
+    patterns:
+      - pattern-regex: '(INSERT|UPDATE)[^;]{0,200}\$(password|pass|pwd)\w*' 
+
+  # ---------------------------------------------------------------------------
+  # A01:2021 Broken Access Control / CWE-862
+  # ---------------------------------------------------------------------------
+  - id: royal-redirect-without-exit
+    languages: [php]
+    severity: ERROR
+    message: >-
+      A Location redirect is issued but execution is not halted. PHP continues
+      past the header and still emits the response body, so any client that
+      ignores redirects receives the protected page. Follow the header with exit.
+    metadata:
+      cwe: "CWE-698"
+      owasp: "A01:2021 Broken Access Control"
+    patterns:
+      - pattern: header($LOC);
+      - metavariable-regex:
+          metavariable: $LOC
+          regex: '.*(Location|location).*'
+      - pattern-not-inside: |
+          header($LOC);
+          exit;
+      - pattern-not-inside: |
+          header($LOC);
+          exit(...);
+      - pattern-not-inside: |
+          header($LOC);
+          die(...);
+
+  - id: royal-session-role-compared-to-literal
+    languages: [php]
+    severity: WARNING
+    message: >-
+      A session value is compared against a hardcoded role string. Confirm the
+      session actually stores that value. In this application the login routine
+      stores an email address in $_SESSION['admin'], so comparing it to 'admin'
+      never matches and the guard never authorises correctly.
+    metadata:
+      cwe: "CWE-863"
+    patterns:
+      - pattern-regex: '\$_SESSION\[.admin.\]\s*[!=]==?\s*.admin.' 
+
+  # ---------------------------------------------------------------------------
+  # A07:2021 Identification and Authentication Failures
+  # ---------------------------------------------------------------------------
+  - id: royal-session-start-without-regenerate
+    languages: [php]
+    severity: WARNING
+    message: >-
+      Session established without session_regenerate_id(). An identifier issued
+      before authentication stays valid afterwards, which permits session
+      fixation.
+    metadata:
+      cwe: "CWE-384"
+    patterns:
+      - pattern: $_SESSION[$K] = $V;
+      - pattern-inside: |
+          function $F(...) { ... }
+      - metavariable-regex:
+          metavariable: $K
+          regex: "'(admin|customer)'"
+      - pattern-not-inside: |
+          session_regenerate_id(...);
+          ...
+
+  # ---------------------------------------------------------------------------
+  # A05:2021 Security Misconfiguration / CWE-798
+  # ---------------------------------------------------------------------------
+  - id: royal-hardcoded-db-credentials
+    languages: [php]
+    severity: ERROR
+    message: >-
+      Database credentials are literals in source. Anyone who reads the file
+      obtains them. Move them to configuration supplied by the environment and
+      keep that configuration outside the web root.
+    metadata:
+      cwe: "CWE-798"
+      owasp: "A05:2021 Security Misconfiguration"
+    patterns:
+      - pattern-either:
+          - pattern: mysqli_connect("...", "...", "...", "...")
+          - pattern: new mysqli("...", "...", "...", "...")
+
+  - id: royal-die-leaks-detail
+    languages: [php]
+    severity: WARNING
+    message: >-
+      Failure path prints directly to the client. Error text can disclose query
+      structure, schema names or file paths. Log the detail and return a
+      generic message.
+    metadata:
+      cwe: "CWE-209"
+    patterns:
+      - pattern-either:
+          - pattern: mysqli_connect(...) or die(...);
+          - pattern: die(mysqli_error(...));
+          - pattern: echo mysqli_error(...);
+
+  # ---------------------------------------------------------------------------
+  # A03:2021 Injection (XSS) / CWE-79
+  # ---------------------------------------------------------------------------
+  - id: royal-unescaped-output
+    languages: [php]
+    severity: ERROR
+    message: >-
+      Value echoed into the page without encoding. Stored input can be
+      interpreted as HTML or script. Wrap with htmlspecialchars() using
+      ENT_QUOTES and UTF-8.
+    metadata:
+      cwe: "CWE-79"
+      owasp: "A03:2021 Injection"
+    patterns:
+      - pattern-either:
+          - pattern: echo $VAR;
+          - pattern: echo $ARR[$K];
+      - pattern-not: echo htmlspecialchars(...);
+      - pattern-not: echo json_encode(...);
+      - pattern-not: echo $INT;
+
+  # ---------------------------------------------------------------------------
+  # A04:2021 Insecure Design / CWE-434
+  # ---------------------------------------------------------------------------
+  - id: royal-upload-extension-allowlist-only
+    languages: [php]
+    severity: ERROR
+    message: >-
+      Uploaded file accepted on the basis of its extension alone and written
+      under its original name. Verify the MIME type, generate a new random
+      filename, and exclude svg, which can carry script.
+    metadata:
+      cwe: "CWE-434"
+      owasp: "A04:2021 Insecure Design"
+    patterns:
+      - pattern: move_uploaded_file($_FILES[...]['tmp_name'], $DEST);
+      - pattern-not-inside: |
+          $N = bin2hex(...);
+          ...

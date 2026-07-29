@@ -1,0 +1,65 @@
+name: Semgrep SAST
+
+on:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  semgrep:
+    name: Static analysis
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: Install Semgrep
+        run: |
+          python -m pip install --upgrade pip
+          pip install semgrep
+
+      # Broad coverage from the public registry. Reported but not gated, because
+      # registry rules change without notice and a rule added upstream should not
+      # break an unrelated build.
+      - name: Registry rules (report only)
+        continue-on-error: true
+        run: |
+          semgrep scan --config auto \
+            --exclude=assets --exclude=vendors --exclude=js \
+            --exclude=scss --exclude=css --exclude=fonts \
+            --json -o semgrep-registry.json .
+
+      # Custom rules written against this application's own fault patterns.
+      # --error makes a finding fail the job, so the build gates on them.
+      - name: Custom rules (gate)
+        run: |
+          semgrep scan --config .semgrep/royal-express.yml \
+            --exclude=assets --exclude=vendors --exclude=js \
+            --exclude=scss --exclude=css --exclude=fonts \
+            --sarif -o semgrep-results.sarif \
+            --error .
+
+      - name: Human-readable summary
+        if: always()
+        run: |
+          semgrep scan --config .semgrep/royal-express.yml \
+            --exclude=assets --exclude=vendors --exclude=js \
+            --exclude=scss --exclude=css --exclude=fonts \
+            . | tee semgrep-results.txt
+
+      - name: Upload reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: semgrep-results
+          path: |
+            semgrep-results.sarif
+            semgrep-results.txt
+            semgrep-registry.json
