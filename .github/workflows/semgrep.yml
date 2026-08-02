@@ -11,6 +11,14 @@ jobs:
     name: Static analysis
     runs-on: ubuntu-latest
 
+    # Required for the SARIF upload step. The default GITHUB_TOKEN is read-only
+    # for security events, so without this the upload fails with
+    # "Resource not accessible by integration".
+    permissions:
+      contents: read
+      security-events: write
+      actions: read
+
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
@@ -31,6 +39,15 @@ jobs:
       # which would produce a pipeline that reports but does not enforce.
       - name: Custom rules, gate
         run: |
+          # First pass prints the findings so the log shows what matched.
+          # Without this the SARIF output is written to a file and the log
+          # reports only a count, which is not enough to act on.
+          semgrep scan --config .semgrep/gate.yml \
+            --exclude=assets --exclude=vendors --exclude=js \
+            --exclude=scss --exclude=css --exclude=fonts \
+            . || true
+
+          # Second pass writes SARIF and fails the job on any match.
           semgrep scan --config .semgrep/gate.yml \
             --exclude=assets --exclude=vendors --exclude=js \
             --exclude=scss --exclude=css --exclude=fonts \
@@ -46,7 +63,7 @@ jobs:
       # sitting inside a downloadable file that nobody opens.
       - name: Publish results to Security tab
         if: always()
-        uses: github/codeql-action/upload-sarif@v3
+        uses: github/codeql-action/upload-sarif@v4
         with:
           sarif_file: semgrep-gate.sarif
           category: semgrep-gate
