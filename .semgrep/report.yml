@@ -1,0 +1,58 @@
+# Report rules.
+# These describe findings with declared residuals, recorded as out of scope in
+# Section 1.4 of the implementation report. They are reported, not gated,
+# because a known and documented remainder should not block every build.
+rules:
+  - id: royal-sql-string-interpolation
+    languages: [php]
+    severity: ERROR
+    message: >-
+      SQL statement assembled by interpolating a PHP variable into the query
+      string. The value becomes part of the command rather than data, which
+      permits SQL injection. Replace with a prepared statement and bind the
+      value as a parameter.
+    metadata:
+      cwe: "CWE-89"
+      owasp: "A03:2021 Injection"
+    patterns:
+      - pattern-regex: '"\s*(SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM)[^"]*\$\w+[^"]*"'
+
+  - id: royal-query-on-unprepared-string
+    languages: [php]
+    severity: WARNING
+    message: >-
+      mysqli_query() is executing a string that was built elsewhere. Confirm the
+      string contains no interpolated input, or convert the call to
+      prepare/bind_param/execute.
+    metadata:
+      cwe: "CWE-89"
+    patterns:
+      - pattern: mysqli_query($CON, $SQL)
+      - pattern-not: mysqli_query($CON, "...")
+
+  # ---------------------------------------------------------------------------
+  # A02:2021 Cryptographic Failures / CWE-256
+  # ---------------------------------------------------------------------------
+
+  - id: royal-unescaped-output
+    languages: [php]
+    severity: ERROR
+    message: >-
+      Value echoed into the page without encoding. Stored input can be
+      interpreted as HTML or script. Wrap with htmlspecialchars() using
+      ENT_QUOTES and UTF-8.
+    metadata:
+      cwe: "CWE-79"
+      owasp: "A03:2021 Injection"
+    patterns:
+      - pattern-either:
+          - pattern: echo $VAR;
+          - pattern: echo $ARR[$K];
+      - pattern-not: echo htmlspecialchars(...);
+      - pattern-not: echo json_encode(...);
+      - pattern-not: echo $INT;
+
+  # ---------------------------------------------------------------------------
+  # A04:2021 Insecure Design / CWE-434
+  # ---------------------------------------------------------------------------
+

@@ -59,5 +59,21 @@ if (session_status() === PHP_SESSION_NONE) {
 // Idle session timeout, in seconds.
 define('SESSION_IDLE_TIMEOUT', 1800);
 
+/*
+ * Identity of the designated administrator account.
+ *
+ * The original application distinguished the principal administrator from other
+ * employees by comparing the session value against the literal string 'admin',
+ * which is the seeded account's email address. That conflates identity with
+ * role: it happens to work for that one account and denies any administrator
+ * added afterwards. Naming it here is an interim measure that keeps the existing
+ * behaviour while removing the magic string from fourteen files. A fuller
+ * redesign would add a role column to the employee table.
+ */
+define('ADMIN_ACCOUNT_EMAIL', getenv('RE_ADMIN_EMAIL') ?: 'admin');
+
+// Largest accepted upload, in bytes. Two megabytes is ample for a site image.
+define('UPLOAD_MAX_BYTES', 2 * 1024 * 1024);
+
 // Cost factor for password hashing. Higher is slower to brute force.
 define('PASSWORD_COST', 12);

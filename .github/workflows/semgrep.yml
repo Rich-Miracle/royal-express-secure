@@ -25,10 +25,46 @@ jobs:
           python -m pip install --upgrade pip
           pip install semgrep
 
-      # Broad coverage from the public registry. Reported but not gated, because
-      # registry rules change without notice and a rule added upstream should not
-      # break an unrelated build.
-      - name: Registry rules (report only)
+      # Gate. Eight rules describing findings that were remediated in full, so any
+      # match is a regression rather than a known residual. --error makes a match
+      # fail the job; without it Semgrep exits zero even when it finds something,
+      # which would produce a pipeline that reports but does not enforce.
+      - name: Custom rules, gate
+        run: |
+          semgrep scan --config .semgrep/gate.yml \
+            --exclude=assets --exclude=vendors --exclude=js \
+            --exclude=scss --exclude=css --exclude=fonts \
+            --sarif -o semgrep-gate.sarif \
+            --error .
+
+      # Report. Three rules covering findings with declared residuals, recorded
+      # as out of scope in Section 1.4 of the implementation report. Reported so
+      # the remainder stays visible, not gated, because a documented remainder
+      # should not block every build.
+      # Publish the gate results into the repository Security tab, where findings
+      # are annotated against the exact lines on a pull request rather than
+      # sitting inside a downloadable file that nobody opens.
+      - name: Publish results to Security tab
+        if: always()
+        uses: github/codeql-action/upload-sarif@v3
+        with:
+          sarif_file: semgrep-gate.sarif
+          category: semgrep-gate
+
+      - name: Custom rules, report only
+        if: always()
+        continue-on-error: true
+        run: |
+          semgrep scan --config .semgrep/report.yml \
+            --exclude=assets --exclude=vendors --exclude=js \
+            --exclude=scss --exclude=css --exclude=fonts \
+            --json -o semgrep-report.json . | tee semgrep-report.txt
+
+      # Public registry rules for breadth. Not gated, because they are maintained
+      # upstream and change without notice; a rule added by a third party should
+      # not break a build for reasons unrelated to the change being pushed.
+      - name: Registry rules, report only
+        if: always()
         continue-on-error: true
         run: |
           semgrep scan --config auto \
@@ -36,30 +72,58 @@ jobs:
             --exclude=scss --exclude=css --exclude=fonts \
             --json -o semgrep-registry.json .
 
-      # Custom rules written against this application's own fault patterns.
-      # --error makes a finding fail the job, so the build gates on them.
-      - name: Custom rules (gate)
-        run: |
-          semgrep scan --config .semgrep/royal-express.yml \
-            --exclude=assets --exclude=vendors --exclude=js \
-            --exclude=scss --exclude=css --exclude=fonts \
-            --sarif -o semgrep-results.sarif \
-            --error .
-
-      - name: Human-readable summary
-        if: always()
-        run: |
-          semgrep scan --config .semgrep/royal-express.yml \
-            --exclude=assets --exclude=vendors --exclude=js \
-            --exclude=scss --exclude=css --exclude=fonts \
-            . | tee semgrep-results.txt
-
       - name: Upload reports
         if: always()
         uses: actions/upload-artifact@v4
         with:
           name: semgrep-results
           path: |
-            semgrep-results.sarif
-            semgrep-results.txt
+            semgrep-gate.sarif
+            semgrep-report.json
+            semgrep-report.txt
             semgrep-registry.json
+
+  # Software composition analysis.
+  #
+  # A separate job because it answers a different question and belongs to a
+  # different phase. Semgrep examines code this project wrote. This examines the
+  # third-party libraries the project depends on, where the vulnerability is
+  # someone else's and the only available control is the version in use.
+  #
+  # retire.js was used rather than the OWASP Dependency-Check named in the
+  # proposal. Dependency-Check requires a Java runtime and an NVD API key, and
+  # its first run downloads the full vulnerability database, which is impractical
+  # inside a CI job that should complete in under a minute. retire.js carries its
+  # own advisory data and targets JavaScript specifically, which is where this
+  # application's third-party code sits.
+  sca:
+    name: Dependency scanning
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20'
+
+      - name: Install retire.js
+        run: npm install -g retire
+
+      # Reported rather than gated. The vulnerable library was declared out of
+      # scope in Section 1.4 of the implementation report, so a failing build
+      # here would report a decision already taken rather than a new problem.
+      - name: Scan dependencies
+        continue-on-error: true
+        run: |
+          retire --path . --outputformat json --outputpath retire-results.json || true
+          retire --path . || true
+
+      - name: Upload dependency report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: sca-results
+          path: retire-results.json

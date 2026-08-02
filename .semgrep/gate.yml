@@ -1,37 +1,7 @@
+# Gate rules.
+# Every finding these describe was remediated in full, so any match is a
+# regression rather than a known residual. The pipeline fails on these.
 rules:
-  # ---------------------------------------------------------------------------
-  # A03:2021 Injection / CWE-89
-  # ---------------------------------------------------------------------------
-  - id: royal-sql-string-interpolation
-    languages: [php]
-    severity: ERROR
-    message: >-
-      SQL statement assembled by interpolating a PHP variable into the query
-      string. The value becomes part of the command rather than data, which
-      permits SQL injection. Replace with a prepared statement and bind the
-      value as a parameter.
-    metadata:
-      cwe: "CWE-89"
-      owasp: "A03:2021 Injection"
-    patterns:
-      - pattern-regex: '"\s*(SELECT|INSERT\s+INTO|UPDATE|DELETE\s+FROM)[^"]*\$\w+[^"]*"'
-
-  - id: royal-query-on-unprepared-string
-    languages: [php]
-    severity: WARNING
-    message: >-
-      mysqli_query() is executing a string that was built elsewhere. Confirm the
-      string contains no interpolated input, or convert the call to
-      prepare/bind_param/execute.
-    metadata:
-      cwe: "CWE-89"
-    patterns:
-      - pattern: mysqli_query($CON, $SQL)
-      - pattern-not: mysqli_query($CON, "...")
-
-  # ---------------------------------------------------------------------------
-  # A02:2021 Cryptographic Failures / CWE-256
-  # ---------------------------------------------------------------------------
   - id: royal-plaintext-password-comparison
     languages: [php]
     severity: ERROR
@@ -44,7 +14,7 @@ rules:
       cwe: "CWE-256"
       owasp: "A02:2021 Cryptographic Failures"
     patterns:
-      - pattern-regex: 'password\s*=\s*.\$\w+.' 
+      - pattern-regex: 'password\s*=\s*.\$\w+.'
 
   - id: royal-password-stored-without-hash
     languages: [php]
@@ -62,6 +32,7 @@ rules:
   # ---------------------------------------------------------------------------
   # A01:2021 Broken Access Control / CWE-862
   # ---------------------------------------------------------------------------
+
   - id: royal-redirect-without-exit
     languages: [php]
     severity: ERROR
@@ -103,6 +74,7 @@ rules:
   # ---------------------------------------------------------------------------
   # A07:2021 Identification and Authentication Failures
   # ---------------------------------------------------------------------------
+
   - id: royal-session-start-without-regenerate
     languages: [php]
     severity: WARNING
@@ -126,6 +98,7 @@ rules:
   # ---------------------------------------------------------------------------
   # A05:2021 Security Misconfiguration / CWE-798
   # ---------------------------------------------------------------------------
+
   - id: royal-hardcoded-db-credentials
     languages: [php]
     severity: ERROR
@@ -159,27 +132,7 @@ rules:
   # ---------------------------------------------------------------------------
   # A03:2021 Injection (XSS) / CWE-79
   # ---------------------------------------------------------------------------
-  - id: royal-unescaped-output
-    languages: [php]
-    severity: ERROR
-    message: >-
-      Value echoed into the page without encoding. Stored input can be
-      interpreted as HTML or script. Wrap with htmlspecialchars() using
-      ENT_QUOTES and UTF-8.
-    metadata:
-      cwe: "CWE-79"
-      owasp: "A03:2021 Injection"
-    patterns:
-      - pattern-either:
-          - pattern: echo $VAR;
-          - pattern: echo $ARR[$K];
-      - pattern-not: echo htmlspecialchars(...);
-      - pattern-not: echo json_encode(...);
-      - pattern-not: echo $INT;
 
-  # ---------------------------------------------------------------------------
-  # A04:2021 Insecure Design / CWE-434
-  # ---------------------------------------------------------------------------
   - id: royal-upload-extension-allowlist-only
     languages: [php]
     severity: ERROR
@@ -195,3 +148,4 @@ rules:
       - pattern-not-inside: |
           $N = bin2hex(...);
           ...
+

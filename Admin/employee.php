@@ -155,7 +155,7 @@
                                 </tfoot>
                                 <tbody>
                                     <?php
-                                    if ($_SESSION['admin'] != 'admin') {
+                                    if (!is_super_admin()) {
                                         $getall = getemployeeByEmail($_SESSION['admin']);
                                     } else {
                                         $getall = getAllemployee();

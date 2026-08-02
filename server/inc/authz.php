@@ -93,6 +93,17 @@ function is_authenticated(): bool
 }
 
 /*
+ * The designated administrator, as distinct from any employee account.
+ *
+ * See the note in config.php. This preserves the original distinction without
+ * repeating a literal string across the interface files.
+ */
+function is_super_admin(): bool
+{
+    return is_admin() && ($_SESSION['admin'] ?? '') === ADMIN_ACCOUNT_EMAIL;
+}
+
+/*
  * Deny the request and stop.
  *
  * 401 when nobody is signed in, 403 when someone is signed in but lacks the
