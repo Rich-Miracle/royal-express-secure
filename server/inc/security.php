@@ -210,4 +210,96 @@ function verify_csrf_token(): bool
     return hash_equals($_SESSION['csrf_token'], $sent);
 }
 
+
+/*
+ * Secure image upload.
+ *
+ * The original handler took the filename the browser supplied, read the
+ * extension off it, checked that extension against an allowlist, and wrote the
+ * file into a web-served directory under its original name. Four faults follow
+ * from that.
+ *
+ * The extension is attacker-controlled and says nothing about the contents. A
+ * file of any type renamed to .png passed the check.
+ *
+ * svg was on the allowlist. SVG is XML, it may contain a <script> element, and
+ * browsers execute it when the file is served as an image. Gallery images render
+ * on the public home page, so one uploaded SVG runs script for every visitor.
+ *
+ * Keeping the original name lets an upload overwrite an existing file, and lets
+ * the attacker choose a path that is predictable and therefore easy to request.
+ *
+ * Nothing checked the size, so a single request could fill the disk.
+ *
+ * The replacement verifies the file's real type by reading its contents, drops
+ * svg from the permitted set, generates a random name, and caps the size.
+ */
+function store_uploaded_image(array $file, string $targetDir): ?string
+{
+    // A path under $_FILES that did not arrive through an HTTP upload is a sign
+    // of tampering with the request.
+    if (!isset($file['tmp_name']) || !is_uploaded_file($file['tmp_name'])) {
+        log_security_event('upload_rejected_not_an_upload');
+        return null;
+    }
+
+    if (($file['error'] ?? UPLOAD_ERR_NO_FILE) !== UPLOAD_ERR_OK) {
+        log_security_event('upload_rejected_error_code', '', ['code' => $file['error']]);
+        return null;
+    }
+
+    if (($file['size'] ?? 0) > UPLOAD_MAX_BYTES || ($file['size'] ?? 0) === 0) {
+        log_security_event('upload_rejected_size', '', ['size' => $file['size'] ?? 0]);
+        return null;
+    }
+
+    /*
+     * The type is read from the file's own bytes rather than from its name or
+     * from the Content-Type header, both of which the client controls. svg is
+     * absent from this map deliberately.
+     */
+    $permitted = [
+        'image/jpeg' => 'jpg',
+        'image/png'  => 'png',
+        'image/gif'  => 'gif',
+        'image/webp' => 'webp',
+    ];
+
+    $finfo = new finfo(FILEINFO_MIME_TYPE);
+    $mime  = $finfo->file($file['tmp_name']);
+
+    if (!isset($permitted[$mime])) {
+        log_security_event('upload_rejected_mime', '', ['mime' => (string) $mime]);
+        return null;
+    }
+
+    // Second check: the bytes have to parse as an actual image, not merely start
+    // with a plausible magic number.
+    if (@getimagesize($file['tmp_name']) === false) {
+        log_security_event('upload_rejected_not_an_image', '', ['mime' => (string) $mime]);
+        return null;
+    }
+
+    /*
+     * A random name, with the extension decided by the verified type rather than
+     * by anything the client sent. This removes the overwrite, removes the
+     * path-traversal potential in the original name, and makes the stored
+     * location unpredictable.
+     */
+    $name = bin2hex(random_bytes(16)) . '.' . $permitted[$mime];
+    $dest = rtrim($targetDir, '/\\') . DIRECTORY_SEPARATOR . $name;
+
+    if (!is_dir($targetDir)) {
+        mkdir($targetDir, 0755, true);
+    }
+
+    if (!move_uploaded_file($file['tmp_name'], $dest)) {
+        log_security_event('upload_failed_move');
+        return null;
+    }
+
+    log_security_event('upload_accepted', '', ['stored_as' => $name, 'mime' => $mime]);
+    return $name;
+}
+
 }

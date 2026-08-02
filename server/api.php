@@ -67,35 +67,32 @@ if ($function_code === 'getCustomerTbleData') {
     updateDataTable($_POST);
 } else if ($function_code === 'insertImageUpload') {
 
-    $img = $_FILES['file']['name'];
-    $target_dir = "uploads/gallery/";
-    $target_file = $target_dir . basename($img);
-    $imageFileType = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
-    $extensions_arr = array("jpg", "jpeg", "png", "gif", "jfif", "svg", "webp");
+    $stored = store_uploaded_image($_FILES['file'] ?? [], __DIR__ . '/uploads/gallery');
 
-    if (in_array($imageFileType, $extensions_arr)) {
-        move_uploaded_file($_FILES['file']['tmp_name'], $target_dir . $img);
-        insertImagetoGallery($img);
+    if ($stored === null) {
+        http_response_code(400);
+        exit(json_encode(['error' => 'Upload rejected']));
     }
+
+    insertImagetoGallery($stored);
 } else if ($function_code === 'imageUploadProducts') {
 
-    $img = $_FILES['file']['name'];
-    $target_dir = "uploads/products/";
-    $target_file = $target_dir . basename($img);
-    $imageFileType = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
-    $extensions_arr = array("jpg", "jpeg", "png", "gif", "jfif", "svg", "webp");
+    $stored = store_uploaded_image($_FILES['file'] ?? [], __DIR__ . '/uploads/products');
 
-    if (in_array($imageFileType, $extensions_arr)) {
-        move_uploaded_file($_FILES['file']['tmp_name'], $target_dir . $img);
-        editImages($_POST, $img);
+    if ($stored === null) {
+        http_response_code(400);
+        exit(json_encode(['error' => 'Upload rejected']));
     }
+
+    editImages($_POST, $stored);
 } else if ($function_code === 'addProducts') {
 
-    $img = $_FILES['file']['name'];
-    $target_dir = "uploads/products/";
-    $target_file = $target_dir . basename($img);
-    $imageFileType = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
-    $extensions_arr = array("jpg", "jpeg", "png", "gif", "jfif", "svg", "webp");
+    // The original branch validated an extension and then did nothing with the
+    // file. Kept as a rejection so the endpoint cannot be used as a probe.
+    if (store_uploaded_image($_FILES['file'] ?? [], __DIR__ . '/uploads/products') === null) {
+        http_response_code(400);
+        exit(json_encode(['error' => 'Upload rejected']));
+    }
 } else if ($function_code === 'deleteData') {
     deleteDataTables($_POST);
 } else if ($function_code === 'permanantDeleteData') {
@@ -104,16 +101,14 @@ if ($function_code === 'getCustomerTbleData') {
     changePageSettings($_POST);
 } else if ($function_code === 'SettingImage') {
 
-    $img = $_FILES['file']['name'];
-    $target_dir = "uploads/settings/";
-    $target_file = $target_dir . basename($img);
-    $imageFileType = strtolower(pathinfo($target_file, PATHINFO_EXTENSION));
-    $extensions_arr = array("jpg", "jpeg", "png", "gif", "jfif", "svg", "webp");
+    $stored = store_uploaded_image($_FILES['file'] ?? [], __DIR__ . '/uploads/settings');
 
-    if (in_array($imageFileType, $extensions_arr)) {
-        move_uploaded_file($_FILES['file']['tmp_name'], $target_dir . $img);
-        editSettingImage($_POST, $img);
+    if ($stored === null) {
+        http_response_code(400);
+        exit(json_encode(['error' => 'Upload rejected']));
     }
+
+    editSettingImage($_POST, $stored);
 } else if ($function_code === 'login') {
     echo getLoginAdmin($_POST);
 } else if ($function_code === 'checkPasswordByEmail') {

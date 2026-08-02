@@ -1,0 +1,56 @@
+THE MISSING FILE: server/api.php
+================================
+
+WHAT THE GATE WAS TELLING YOU
+-----------------------------
+The three findings were all in server/api.php. Your copy still has the original
+upload handling:
+
+    $extensions_arr = array("jpg","jpeg","png","gif","jfif","svg","webp");
+    if (in_array($imageFileType, $extensions_arr)) {
+        move_uploaded_file($_FILES['file']['tmp_name'], $target_dir . $img);
+
+This means zip 6 never applied, and the file upload vulnerability (V4) is NOT
+fixed in your repository, even though Section 6.6 of the report says it is.
+The gate caught a genuine gap between what the report claims and what the code
+does, which is exactly what a gate is for.
+
+WHAT ELSE THIS AFFECTS
+----------------------
+api.php also carries the authorisation gate from zip 3b. If your copy predates
+that, the access control fix is partly missing too. The version here contains
+everything: the authorisation gate, the direct-request test, and the secure
+upload calls.
+
+CHECK BEFORE EXTRACTING
+-----------------------
+    findstr /C:"require_authorisation" server\api.php
+
+If that prints nothing, your api.php is very old and the access control fix is
+missing as well. Either way this file replaces it.
+
+EXTRACT
+-------
+Into the project folder, overwriting. Then verify all three took:
+
+    findstr /C:"store_uploaded_image" server\api.php     (should print 4 lines)
+    findstr /C:"extensions_arr" server\api.php           (should print NOTHING)
+    findstr /C:"require_authorisation" server\api.php    (should print a line)
+
+If extensions_arr still prints, the overwrite did not happen. Copy api.php in
+manually from the zip.
+
+TEST BEFORE PUSHING
+-------------------
+1. Load the site. Sign in as admin / 12345.
+2. Upload a normal JPEG through Gallery. Should succeed, and the stored file in
+   server/uploads/gallery should have a long random hex name.
+3. Rename a .txt to .png and upload it. Should be rejected.
+4. Confirm the gallery and settings pages still display existing images.
+
+Then:
+    git add .
+    git commit -m "fix: apply secure upload handling to api.php"
+    git push
+
+The gate should now report 0 findings and the job should pass.

@@ -1,0 +1,7 @@
+# Defence in depth. Even if a file that PHP would execute ever reaches this
+# directory, the server must not run it. Uploads are data, never code.
+php_flag engine off
+<FilesMatch "\.(php|php3|php4|php5|php7|phtml|phar|cgi|pl|py|sh)$">
+    Require all denied
+</FilesMatch>
+Options -Indexes
