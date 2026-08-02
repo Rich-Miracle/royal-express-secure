@@ -13,3 +13,7 @@ server/inc/config.local.php
 
 # Uploaded content
 server/uploads/products/
+semgrep-*.json
+retire-results.json
+semgrep-*.sarif
+semgrep-*.txt
