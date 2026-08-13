@@ -46,20 +46,6 @@ jobs:
             --exclude=assets --exclude=vendors --exclude=js \
             --exclude=scss --exclude=css --exclude=fonts \
             . || true
-      - name: Full ruleset counts for report figure
-        if: always()
-        continue-on-error: true
-        run: |
-          echo "===== BEFORE: vulnerable baseline ====="
-          git worktree add /tmp/vuln vulnerable-baseline
-          cp -r .semgrep /tmp/vuln/.semgrep
-          semgrep scan --config /tmp/vuln/.semgrep/royal-express.yml \
-            --exclude=assets --exclude=vendors --exclude=js \
-            --exclude=scss --exclude=css --exclude=fonts /tmp/vuln
-          echo "===== AFTER: current fixed code ====="
-          semgrep scan --config .semgrep/royal-express.yml \
-            --exclude=assets --exclude=vendors --exclude=js \
-            --exclude=scss --exclude=css --exclude=fonts .
 
           # Second pass writes SARIF and fails the job on any match.
           semgrep scan --config .semgrep/gate.yml \
