@@ -53,19 +53,20 @@ jobs:
         if: always()
         continue-on-error: true
         run: |
-          echo "===== BEFORE: vulnerable baseline ====="
           mkdir -p /tmp/vuln
           git archive vulnerable-baseline | tar -x -C /tmp/vuln
           semgrep scan --config .semgrep/royal-express.yml \
             --exclude=assets --exclude=vendors --exclude=js \
             --exclude=scss --exclude=css --exclude=fonts \
-            --quiet /tmp/vuln 2>&1 | tail -20
-          echo ""
-          echo "===== AFTER: current fixed code ====="
+            --json -o /tmp/before.json /tmp/vuln > /dev/null 2>&1 || true
           semgrep scan --config .semgrep/royal-express.yml \
             --exclude=assets --exclude=vendors --exclude=js \
             --exclude=scss --exclude=css --exclude=fonts \
-            --quiet . 2>&1 | tail -20
+            --json -o /tmp/after.json . > /dev/null 2>&1 || true
+          echo "=================================================="
+          echo "  BEFORE (vulnerable baseline): $(jq '.results | length' /tmp/before.json) findings"
+          echo "  AFTER  (current fixed code):  $(jq '.results | length' /tmp/after.json) findings"
+          echo "=================================================="
 
           # Second pass writes SARIF and fails the job on any match.
           semgrep scan --config .semgrep/gate.yml \
