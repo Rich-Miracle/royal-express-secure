@@ -65,7 +65,9 @@ jobs:
           semgrep scan --config .semgrep/royal-express.yml \
             --exclude=assets --exclude=vendors --exclude=js \
             --exclude=scss --exclude=css --exclude=fonts \
-            --quiet /tmp/vuln
+            /tmp/vuln > /tmp/before.txt 2>&1 || true
+          echo "========== BEFORE: Scan Summary =========="
+          grep -A 12 "Scan Summary" /tmp/before.txt
 
       - name: AFTER count (current fixed code)
         if: always()
