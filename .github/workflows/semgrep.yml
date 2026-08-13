@@ -46,6 +46,7 @@ jobs:
             --exclude=assets --exclude=vendors --exclude=js \
             --exclude=scss --exclude=css --exclude=fonts \
             . || true
+            
       - name: Full ruleset counts for report figure
         if: always()
         continue-on-error: true
