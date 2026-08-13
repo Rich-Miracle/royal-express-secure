@@ -48,25 +48,6 @@ jobs:
             --exclude=assets --exclude=vendors --exclude=js \
             --exclude=scss --exclude=css --exclude=fonts \
             . || true
-            
-      - name: Full ruleset counts for report figure
-        if: always()
-        continue-on-error: true
-        run: |
-          mkdir -p /tmp/vuln
-          git archive vulnerable-baseline | tar -x -C /tmp/vuln
-          semgrep scan --config .semgrep/royal-express.yml \
-            --exclude=assets --exclude=vendors --exclude=js \
-            --exclude=scss --exclude=css --exclude=fonts \
-            --json -o /tmp/before.json /tmp/vuln > /dev/null 2>&1 || true
-          semgrep scan --config .semgrep/royal-express.yml \
-            --exclude=assets --exclude=vendors --exclude=js \
-            --exclude=scss --exclude=css --exclude=fonts \
-            --json -o /tmp/after.json . > /dev/null 2>&1 || true
-          echo "=================================================="
-          echo "  BEFORE (vulnerable baseline): $(jq '.results | length' /tmp/before.json) findings"
-          echo "  AFTER  (current fixed code):  $(jq '.results | length' /tmp/after.json) findings"
-          echo "=================================================="
 
           # Second pass writes SARIF and fails the job on any match.
           semgrep scan --config .semgrep/gate.yml \
@@ -74,6 +55,24 @@ jobs:
             --exclude=scss --exclude=css --exclude=fonts \
             --sarif -o semgrep-gate.sarif \
             --error .
+        
+      - name: BEFORE count (vulnerable baseline)
+        if: always()
+        continue-on-error: true
+        run: |
+          mkdir -p /tmp/vuln
+          git archive vulnerable-baseline | tar -x -C /tmp/vuln
+          semgrep scan --config .semgrep/royal-express.yml \
+            --exclude=assets --exclude=vendors --exclude=js \
+            --exclude=scss --exclude=css --exclude=fonts /tmp/vuln
+
+      - name: AFTER count (current fixed code)
+        if: always()
+        continue-on-error: true
+        run: |
+          semgrep scan --config .semgrep/royal-express.yml \
+            --exclude=assets --exclude=vendors --exclude=js \
+            --exclude=scss --exclude=css --exclude=fonts .
 
       # Report. Three rules covering findings with declared residuals, recorded
       # as out of scope in Section 1.4 of the implementation report. Reported so
