@@ -64,7 +64,8 @@ jobs:
           git archive vulnerable-baseline | tar -x -C /tmp/vuln
           semgrep scan --config .semgrep/royal-express.yml \
             --exclude=assets --exclude=vendors --exclude=js \
-            --exclude=scss --exclude=css --exclude=fonts /tmp/vuln
+            --exclude=scss --exclude=css --exclude=fonts \
+            --quiet /tmp/vuln
 
       - name: AFTER count (current fixed code)
         if: always()
