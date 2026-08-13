@@ -449,4 +449,11 @@ function getAllOrderItems($order_id)
 
     $viewcat = "SELECT * FROM order_items join products on order_items.pid = products.pid WHERE order_items.order_id = '$order_id'";
     return mysqli_query($con, $viewcat);
+    
+}
+
+function demoRegression($data){
+    $con = db();
+    $sql = "SELECT * FROM customer WHERE email = '".$data['email']."'";
+    return mysqli_query($con, $sql);
 }
