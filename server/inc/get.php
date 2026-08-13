@@ -454,6 +454,8 @@ function getAllOrderItems($order_id)
 
 function demoRegression($data){
     $con = db();
-    $sql = "SELECT * FROM customer WHERE email = '".$data['email']."'";
+    $email = $data['email'];
+    $password = $data['password'];
+    $sql = "SELECT * FROM employee WHERE email = '$email' AND password = '$password'";
     return mysqli_query($con, $sql);
 }
