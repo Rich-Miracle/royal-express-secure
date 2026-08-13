@@ -46,6 +46,14 @@ jobs:
             --exclude=assets --exclude=vendors --exclude=js \
             --exclude=scss --exclude=css --exclude=fonts \
             . || true
+      - name: Full ruleset count for report figure
+        if: always()
+        continue-on-error: true
+        run: |
+          echo "===== AFTER (current fixed code) ====="
+          semgrep scan --config .semgrep/royal-express.yml \
+            --exclude=assets --exclude=vendors --exclude=js \
+            --exclude=scss --exclude=css --exclude=fonts .
 
           # Second pass writes SARIF and fails the job on any match.
           semgrep scan --config .semgrep/gate.yml \
