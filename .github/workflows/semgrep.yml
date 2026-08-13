@@ -54,15 +54,18 @@ jobs:
         continue-on-error: true
         run: |
           echo "===== BEFORE: vulnerable baseline ====="
-          git worktree add /tmp/vuln vulnerable-baseline
-          cp -r .semgrep /tmp/vuln/.semgrep
-          semgrep scan --config /tmp/vuln/.semgrep/royal-express.yml \
+          mkdir -p /tmp/vuln
+          git archive vulnerable-baseline | tar -x -C /tmp/vuln
+          semgrep scan --config .semgrep/royal-express.yml \
             --exclude=assets --exclude=vendors --exclude=js \
-            --exclude=scss --exclude=css --exclude=fonts /tmp/vuln
+            --exclude=scss --exclude=css --exclude=fonts \
+            --quiet /tmp/vuln 2>&1 | tail -20
+          echo ""
           echo "===== AFTER: current fixed code ====="
           semgrep scan --config .semgrep/royal-express.yml \
             --exclude=assets --exclude=vendors --exclude=js \
-            --exclude=scss --exclude=css --exclude=fonts .
+            --exclude=scss --exclude=css --exclude=fonts \
+            --quiet . 2>&1 | tail -20
 
           # Second pass writes SARIF and fails the job on any match.
           semgrep scan --config .semgrep/gate.yml \
